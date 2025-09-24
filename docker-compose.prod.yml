@@ -1,0 +1,60 @@
+# ============================================================================
+# 🎯 TaskFlow ADHD - Docker Compose PRODUCTION LOCALE
+# POUR TON SERVEUR + PORTAINER + EXTERNAL NETWORK
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # 🔥 API FastAPI TaskFlow ADHD
+  taskflow-api:
+    image: taskflow-api:latest  # Image locale que tu builderas
+    container_name: taskflow-api-paul
+    ports:
+      - "8008:8000"
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - SECRET_KEY=taskflow-adhd-secret-key-paul-delhomme-2025
+      - CORS_ORIGINS=https://taskflow.delhomme.ovh,http://localhost:3003
+    volumes:
+      - taskflow_api_data:/app/data
+    networks:
+      - shared-network-copy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 🌐 Web Next.js TaskFlow ADHD  
+  taskflow-web:
+    image: taskflow-web:latest  # Image locale que tu builderas
+    container_name: taskflow-web-paul
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=development  # En dev pour ton serveur
+      - NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:8008  # Remplace par ton IP serveur
+      - NEXT_TELEMETRY_DISABLED=1
+    networks:
+      - shared-network-copy
+    depends_on:
+      - taskflow-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  shared-network-copy:
+    external: true
+
+volumes:
+  taskflow_api_data:
+    name: taskflow_api_data_paul

@@ -17,6 +17,7 @@ interface Task {
   status: string
   priority: string
   blocked_reason?: string
+  trello_id?: string
   created_at: string
   updated_at: string
 }
@@ -67,7 +68,8 @@ export default function TaskflowPage() {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    priority: 'medium'
+    priority: 'medium',
+    trello_id: ''
   })
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008'
@@ -251,7 +253,7 @@ export default function TaskflowPage() {
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium' })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '' })
         setShowCreateModal(false)
         fetchTasks(token)
         
@@ -653,6 +655,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'in_progress').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
+                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      {task.trello_id && (
+                        <small className="text-info d-block mb-1">
+                          🔗 Trello: {task.trello_id}
+                        </small>
+                      )}
                       <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.description && (
                         <p className="card-text small text-muted mb-1">{task.description}</p>
@@ -685,6 +693,12 @@ export default function TaskflowPage() {
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
                       <h6 className="card-title mb-1 small">{task.title}</h6>
+                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      {task.trello_id && (
+                        <small className="text-info d-block mb-1">
+                          🔗 Trello: {task.trello_id}
+                        </small>
+                      )}
                       <div className="mb-2">
                         {getStatusBadge(task.status)}
                         {getPriorityBadge(task.priority)}
@@ -712,6 +726,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'standby').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
+                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      {task.trello_id && (
+                        <small className="text-info d-block mb-1">
+                          🔗 Trello: {task.trello_id}
+                        </small>
+                      )}
                       <h6 className="card-title mb-1 small">{task.title}</h6>
                       <div className="mb-2">
                         {getStatusBadge(task.status)}
@@ -737,6 +757,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'blocked').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
+                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      {task.trello_id && (
+                        <small className="text-info d-block mb-1">
+                          🔗 Trello: {task.trello_id}
+                        </small>
+                      )}
                       <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.blocked_reason && (
                         <div className="alert alert-danger py-1 mb-1 small">
@@ -770,6 +796,12 @@ export default function TaskflowPage() {
                     {tasks.filter(t => t.status === 'review').map(task => (
                       <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                         <div className="card-body p-2">
+                          {/* ✅ AJOUT : Affichage Trello ID */}
+                          {task.trello_id && (
+                            <small className="text-info d-block mb-1">
+                              🔗 Trello: {task.trello_id}
+                            </small>
+                          )}
                           <h6 className="card-title mb-1 small">{task.title}</h6>
                           <div className="mb-2">
                             {getStatusBadge(task.status)}
@@ -795,6 +827,12 @@ export default function TaskflowPage() {
                     {tasks.filter(t => t.status === 'done').slice(0, 3).map(task => (
                       <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                         <div className="card-body p-2">
+                          {/* ✅ AJOUT : Affichage Trello ID */}
+                          {task.trello_id && (
+                            <small className="text-info d-block mb-1">
+                              🔗 Trello: {task.trello_id}
+                            </small>
+                          )}
                           <h6 className="card-title mb-1 small">{task.title}</h6>
                           <div className="d-flex justify-content-between align-items-center">
                             <div>
@@ -939,6 +977,16 @@ export default function TaskflowPage() {
                   />
                 </div>
                 <div className="mb-3">
+                <label className="form-label">ID Ticket Trello (optionnel)</label>
+                <input
+                  type="text"
+                  className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                  value={newTask.trello_id}
+                  onChange={(e) => setNewTask({...newTask, trello_id: e.target.value})}
+                  placeholder="Ex: abc123def456"
+                />
+              </div>
+                <div className="mb-3">
                   <label className="form-label">Priorité</label>
                   <select
                     className={`form-select ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
@@ -994,6 +1042,16 @@ export default function TaskflowPage() {
                   />
                 </div>
                 <div className="mb-3">
+                  <label className="form-label">ID Ticket Trello</label>
+                  <input
+                    type="text"
+                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={selectedTask.trello_id || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, trello_id: e.target.value})}
+                    placeholder="Ex: abc123def456"
+                  />
+                </div>
+                <div className="mb-3">
                   <label className="form-label">Priorité</label>
                   <select
                     className={`form-select ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
@@ -1016,7 +1074,8 @@ export default function TaskflowPage() {
                   onClick={() => updateTask(selectedTask.id, {
                     title: selectedTask.title,
                     description: selectedTask.description,
-                    priority: selectedTask.priority
+                    priority: selectedTask.priority,
+                    trello_id: selectedTask.trello_id
                   })}
                 >
                   Sauvegarder

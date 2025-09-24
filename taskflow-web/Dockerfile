@@ -5,20 +5,17 @@ WORKDIR /app
 # Install curl pour healthcheck
 RUN apk add --no-cache curl
 
-# Copy package files first (pour cache Docker)
+# Copy package.json first (pour cache Docker)
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
-# Copy application
+# Copy all files
 COPY . .
-
-# Build application
-RUN npm run build
 
 # Expose port
 EXPOSE 3000
 
-# Command
+# DEV MODE (pas de build en prod pour éviter erreurs)
 CMD ["npm", "run", "dev"]

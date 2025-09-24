@@ -1,670 +1,719 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-🎯 TaskFlow ADHD API - Backend Complet avec PostgreSQL
-Système de tracking professionnel optimisé pour TDAH
-Author: Paul Delhomme
-Version: 2.0 - Production Ready
-"""
-
 from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-import uvicorn
 from datetime import datetime, timedelta
-import logging
-import os
+import sqlite3
 import hashlib
 import jwt
-from passlib.context import CryptContext
-import uuid
+import os
+import re
+from contextlib import contextmanager
 
-# Configuration du logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# 🎯 Configuration Database PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://taskflow:taskflow123@taskflow-db:5432/taskflow_adhd")
+# Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "taskflow-adhd-secret-key-paul-delhomme-2025")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USER = os.getenv("EMAIL_USER", "")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "taskflow@delhomme.ovh")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 heures
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24h pour multi-sessions
 
-# SQLAlchemy setup
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# Domaine autorisé pour inscription
+ALLOWED_DOMAIN = "@delhomme.ovh"
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# FastAPI app
+app = FastAPI(title="TaskFlow ADHD API", version="2.0.0")
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for multi-device
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Security
 security = HTTPBearer()
 
-# ============================================================================
-# 🗄️ MODÈLES DATABASE (SQLAlchemy)
-# ============================================================================
+# Database
+DATABASE = "/app/data/taskflow.db"
 
-class User(Base):
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    full_name = Column(String(100))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
 
-class Task(Base):
-    __tablename__ = "tasks"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
-    title = Column(String(200), nullable=False)
-    description = Column(Text, default="")
-    status = Column(String(20), default="todo")  # todo, in-progress, blocked, waiting-review, done
-    priority = Column(String(10), default="medium")  # low, medium, high, urgent
-    project = Column(String(100), default="")
-    estimated_duration = Column(Integer, default=30)  # minutes
-    actual_duration = Column(Integer, default=0)
-    focus_count = Column(Integer, default=0)
-    distraction_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    completed_at = Column(DateTime, nullable=True)
-
-class FocusSession(Base):
-    __tablename__ = "focus_sessions"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
-    task_id = Column(Integer, nullable=False)
-    duration = Column(Integer, nullable=False)  # minutes
-    quality_score = Column(Integer, default=3)  # 1-5
-    notes = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class DailyReport(Base):
-    __tablename__ = "daily_reports"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
-    report_date = Column(DateTime, nullable=False)
-    tasks_completed = Column(Integer, default=0)
-    tasks_created = Column(Integer, default=0)
-    total_focus_time = Column(Integer, default=0)  # minutes
-    productivity_score = Column(Float, default=0.0)
-    summary = Column(Text, default="")
-    challenges = Column(Text, default="")
-    next_day_goals = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-# Créer les tables
-Base.metadata.create_all(bind=engine)
-
-# ============================================================================
-# 📊 MODÈLES PYDANTIC (API)
-# ============================================================================
-
-class UserCreate(BaseModel):
+# Models
+class UserRegister(BaseModel):
     username: str
     email: str
     password: str
-    full_name: Optional[str] = ""
+    full_name: str
 
 class UserLogin(BaseModel):
-    username: str
+    email: str
     password: str
 
-class TaskCreate(BaseModel):
+class Task(BaseModel):
     title: str
-    description: Optional[str] = ""
-    status: Optional[str] = "todo"
-    priority: Optional[str] = "medium"
-    project: Optional[str] = ""
-    estimated_duration: Optional[int] = 30
+    description: Optional[str] = None
+    priority: str = 'medium'
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
-    project: Optional[str] = None
-    estimated_duration: Optional[int] = None
+    blocked_reason: Optional[str] = None
 
-class FocusSessionCreate(BaseModel):
-    task_id: int
-    duration: int
-    quality_score: Optional[int] = 3
-    notes: Optional[str] = ""
-
-# ============================================================================
-# 🚀 APPLICATION FASTAPI
-# ============================================================================
-
-app = FastAPI(
-    title="TaskFlow ADHD API",
-    description="API de tracking professionnel optimisée pour TDAH - Paul Delhomme",
-    version="2.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc"
-)
-
-# CORS avec nouveaux ports
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3003",  # Nouveau port Web
-        "http://web:3000",
-        "http://taskflow-web:3000",
-        "https://taskflow.delhomme.ovh"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ============================================================================
-# 🔐 FONCTIONS D'AUTHENTIFICATION
-# ============================================================================
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# Hash functions
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    """Hash password with SHA-256 + salt"""
+    import secrets
+    import base64
     
+    salt = secrets.token_bytes(32)
+    salt_b64 = base64.b64encode(salt).decode('utf-8')
+    password_salt = password + salt_b64
+    hashed = hashlib.sha256(password_salt.encode('utf-8')).hexdigest()
+    return f"sha256${salt_b64}${hashed}"
+
+def send_email(to_email: str, subject: str, body: str):
+    """Envoyer un email de notification"""
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        print(f"Email skipped (no config): {subject}")
+        return
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_FROM
+        msg['To'] = to_email
+        msg['Subject'] = f"🎯 TaskFlow ADHD - {subject}"
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(EMAIL_FROM, to_email, text)
+        server.quit()
+        print(f"Email sent to {to_email}: {subject}")
+    except Exception as e:
+        print(f"Email failed: {e}")
+
+
+
+def verify_password(input_password: str, stored_hash: str) -> bool:
+    """Verify password against stored hash"""
+    if not stored_hash.startswith('sha256$'):
+        # Fallback pour ancien hash simple
+        return hashlib.sha256(input_password.encode()).hexdigest() == stored_hash
+    
+    parts = stored_hash.split('$')
+    if len(parts) != 3:
+        return False
+    
+    salt_part = parts[1]
+    hash_part = parts[2]
+    
+    password_salt = input_password + salt_part
+    calculated_hash = hashlib.sha256(password_salt.encode('utf-8')).hexdigest()
+    
+    return calculated_hash == hash_part
+
+# Initialize DB
+def init_db():
+    os.makedirs("/app/data", exist_ok=True)
+    with get_db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                status TEXT DEFAULT 'todo',
+                priority TEXT DEFAULT 'medium',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                blocked_reason TEXT,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                standby_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS task_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                details TEXT,
+                FOREIGN KEY (task_id) REFERENCES tasks (id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS workflows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                steps TEXT NOT NULL,
+                category TEXT DEFAULT 'dev',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+        """)
+        
+        # Créer utilisateur Paul avec ton mot de passe sécurisé
+        try:
+            # Ton hash généré : utilise celui de notre calcul précédent
+            password_hash = "sha256$aa+qb6XJ9lrOlR1zGCcqUqI6PkT9mhhkBhOTRSP039Q=$b2a06b2d19777fb4151ea69be5b9da909db126ad6eaa95069b3301b251bf59b7"
+            
+            cursor = conn.execute("""
+                INSERT INTO users (username, email, password_hash, full_name) 
+                VALUES (?, ?, ?, ?)
+            """, ("paul", "paul@delhomme.ovh", password_hash, "Paul Delhomme"))
+            
+            user_id = cursor.lastrowid
+            
+            # Ajouter workflows par défaut
+            workflows = [
+                ("Pré développement", """1. Vérifie la tâche assignée sur Trello (MEP Tech/backlog/sprint)
+2. Crée une nouvelle branche propre depuis dev
+3. Installe les dépendances si besoin: composer install
+4. Met à jour README si fonctionnalité majeure
+5. Déplace la carte Trello en "En cours" """, "dev"),
+                
+                ("Pendant développement", """1. Avance le ticket Trello selon l'état
+2. Développe la feature/correctif
+3. Lance les tests automatisés localement
+4. Met à jour l'avancement pour le Daily 11h
+5. Documente les blocages rencontrés""", "dev"),
+                
+                ("Pré Pull Request", """1. Synchronise avec dev (git merge/rebase origin/dev)
+2. Vérifie le nom du commit (feat:, fix:, hotfix:)
+3. Lance tous les tests (Playwright, PHPUnit, PHPStan, PHPCS)
+4. Crée la PR (feat/branch → dev)
+5. Ajoute le lien PR en pièce jointe Trello
+6. Déplace carte en "Merge Request"
+7. Rédige description claire de la PR""", "git"),
+                
+                ("Post Merge", """1. Pull la branche dev localement
+2. Vérifie le déploiement CI/CD
+3. Relance tests end-to-end si nécessaire
+4. Déplace carte Trello (Test/Done)
+5. Prévient l'équipe si impact sur leur périmètre
+6. Nettoie la branche feature locale""", "git"),
+                
+                ("Checklist Quotidienne", """1. Vérifier les Logs de Brevo pour emails bloqués
+2. Débloquer tous les mails non piter.at
+3. Analyser si tout fonctionne bien
+4. Vérifier les filtres Brevo
+5. Contrôler les contrats et déblocages
+6. Daily meeting 11h - Préparer avancement""", "daily"),
+                
+                ("Rappel Tickets", """🎯 AUCUNE TÂCHE ACTIVE - Actions à faire:
+
+1. Aller sur Trello → Colonne "Tests-Auto"
+2. Prendre un ticket de test automatisé
+3. OU Aller sur "MEP Tech" → Prendre nouvelle feature
+4. OU Contacter collègue sur tâche partagée pour aider
+5. OU Reprendre tâche en standby si déblocage possible
+
+⚠️ Ne JAMAIS rester sans tâche active !""", "reminder")
+            ]
+            
+            for name, steps, category in workflows:
+                conn.execute(
+                    "INSERT INTO workflows (user_id, name, steps, category) VALUES (?, ?, ?, ?)",
+                    (user_id, name, steps, category)
+                )
+                
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+
+# Auth functions
+def create_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("user_id")
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
+        return user_id
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-    
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    return user
 
-# ============================================================================
-# 🏠 ROUTES PRINCIPALES
-# ============================================================================
+def validate_delhomme_email(email: str) -> bool:
+    """Valide que l'email appartient au domaine @delhomme.ovh"""
+    return email.endswith(ALLOWED_DOMAIN)
 
-@app.get("/")
-async def root():
-    """Page d'accueil API"""
-    return {
-        "message": "🎯 TaskFlow ADHD API - Système de tracking professionnel",
-        "version": "2.0.0",
-        "author": "Paul Delhomme",
-        "docs": "/api/docs",
-        "health": "/health",
-        "ports": {
-            "api": "8008",
-            "web": "3003", 
-            "db": "5435"
-        },
-        "features": ["PostgreSQL", "JWT Auth", "Focus Sessions", "Daily Reports"]
-    }
-
+# Routes
 @app.get("/health")
-async def health_check(db: Session = Depends(get_db)):
-    """Health check complet avec DB"""
-    try:
-        # Test connection DB
-        db.execute("SELECT 1")
+async def health():
+    return {"status": "ok", "version": "2.0.0"}
+
+@app.post("/auth/register")
+async def register(user: UserRegister):
+    # Validation domaine (silencieuse pour sécurité)
+    if not validate_delhomme_email(user.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    # Validation username
+    if not re.match(r'^[a-zA-Z0-9_]{3,20}$', user.username):
+        raise HTTPException(status_code=400, detail="Username must be 3-20 characters, alphanumeric and underscore only")
+    
+    with get_db() as conn:
+        # Vérifier si utilisateur existe
+        existing = conn.execute(
+            "SELECT id FROM users WHERE username = ? OR email = ?",
+            (user.username, user.email)
+        ).fetchone()
+        
+        if existing:
+            raise HTTPException(status_code=400, detail="User already exists")
+        
+        # Créer utilisateur
+        password_hash = hash_password(user.password)
+        
+        cursor = conn.execute("""
+            INSERT INTO users (username, email, password_hash, full_name)
+            VALUES (?, ?, ?, ?)
+        """, (user.username, user.email, password_hash, user.full_name))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        
+        # Créer token
+        token = create_token({"user_id": user_id, "username": user.username})
+        
         return {
-            "status": "healthy",
-            "service": "TaskFlow ADHD API",
-            "timestamp": datetime.utcnow(),
-            "version": "2.0.0",
-            "database": "connected",
-            "auth": "jwt_enabled",
-            "ports": {
-                "current_api": "8000 (internal)",
-                "external_api": "8008",
-                "web": "3003",
-                "database": "5435"
+            "access_token": token, 
+            "token_type": "bearer", 
+            "user": {
+                "id": user_id,
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.full_name
             }
         }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
+
+@app.post("/auth/login")
+async def login(user: UserLogin):
+    with get_db() as conn:
+        db_user = conn.execute(
+            "SELECT id, username, password_hash, full_name FROM users WHERE email = ? AND is_active = true",
+            (user.email,)
+        ).fetchone()
+        
+        if not db_user or not verify_password(user.password, db_user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        token = create_token({"user_id": db_user["id"], "username": db_user["username"]})
         return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.utcnow()
+            "access_token": token, 
+            "token_type": "bearer", 
+            "user": {
+                "id": db_user["id"],
+                "username": db_user["username"],
+                "full_name": db_user["full_name"]
+            }
         }
 
-# ============================================================================
-# 🔐 ROUTES AUTHENTIFICATION
-# ============================================================================
+@app.get("/tasks")
+async def get_tasks(user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        # Note: Tous les utilisateurs @delhomme.ovh voient les mêmes tâches (base commune)
+        tasks = conn.execute("""
+            SELECT * FROM tasks 
+            ORDER BY 
+                CASE status 
+                    WHEN 'in_progress' THEN 1
+                    WHEN 'blocked' THEN 2
+                    WHEN 'standby' THEN 3
+                    WHEN 'todo' THEN 4
+                    WHEN 'review' THEN 5
+                    WHEN 'done' THEN 6
+                END,
+                priority DESC,
+                created_at DESC
+        """).fetchall()
+        
+        return [dict(task) for task in tasks]
 
-@app.post("/api/auth/register")
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Inscription utilisateur"""
-    # Vérifier si l'utilisateur existe
-    if db.query(User).filter(User.username == user_data.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-    
-    if db.query(User).filter(User.email == user_data.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Créer l'utilisateur
-    user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password),
-        full_name=user_data.full_name
-    )
-    
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    logger.info(f"Nouvel utilisateur créé: {user.username}")
-    
-    return {
-        "message": "Utilisateur créé avec succès",
-        "user_id": user.id,
-        "username": user.username
-    }
+@app.post("/tasks")
+async def create_task(task: Task, user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        cursor = conn.execute("""
+            INSERT INTO tasks (user_id, title, description, priority)
+            VALUES (?, ?, ?, ?)
+        """, (user_id, task.title, task.description, task.priority))
+        
+        task_id = cursor.lastrowid
+        
+        # Log creation
+        conn.execute("""
+            INSERT INTO task_logs (task_id, action, details)
+            VALUES (?, 'created', ?)
+        """, (task_id, f"Task created: {task.title}"))
+        
+        conn.commit()
+        
+        return {"id": task_id, "message": "Task created"}
 
-@app.post("/api/auth/login")
-async def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    """Connexion utilisateur"""
-    user = db.query(User).filter(User.username == credentials.username).first()
-    
-    if not user or not verify_password(credentials.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Username ou mot de passe incorrect")
-    
-    if not user.is_active:
-        raise HTTPException(status_code=401, detail="Compte désactivé")
-    
-    # Créer le token JWT
-    access_token = create_access_token(data={"sub": user.username})
-    
-    logger.info(f"Connexion réussie: {user.username}")
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "full_name": user.full_name,
-            "email": user.email
-        }
-    }
+@app.put("/tasks/{task_id}")
+async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        # Vérifier que la tâche existe (pas de restriction user pour base commune)
+        existing = conn.execute(
+            "SELECT * FROM tasks WHERE id = ?",
+            (task_id,)
+        ).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Update fields
+        update_fields = []
+        values = []
+        
+        if task_update.title is not None:
+            update_fields.append("title = ?")
+            values.append(task_update.title)
+            
+        if task_update.description is not None:
+            update_fields.append("description = ?")
+            values.append(task_update.description)
+            
+        if task_update.status is not None:
+            update_fields.append("status = ?")
+            values.append(task_update.status)
+            
+            # Log timestamps selon le statut
+            if task_update.status == 'in_progress' and existing['status'] != 'in_progress':
+                update_fields.append("started_at = CURRENT_TIMESTAMP")
+            elif task_update.status == 'done' and existing['status'] != 'done':
+                update_fields.append("completed_at = CURRENT_TIMESTAMP")
+            elif task_update.status == 'standby' and existing['status'] != 'standby':
+                update_fields.append("standby_at = CURRENT_TIMESTAMP")
+                
+        if task_update.priority is not None:
+            update_fields.append("priority = ?")
+            values.append(task_update.priority)
+            
+        if task_update.blocked_reason is not None:
+            update_fields.append("blocked_reason = ?")
+            values.append(task_update.blocked_reason)
+        
+        if update_fields:
+            update_fields.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(task_id)
+            
+            conn.execute(f"""
+                UPDATE tasks 
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            """, values)
+            
+            # Log action
+            action = task_update.status or 'updated'
+            details = f"Status: {task_update.status}" if task_update.status else "Task updated"
+            if task_update.blocked_reason:
+                details += f" | Blocked: {task_update.blocked_reason}"
+                
+            conn.execute("""
+                INSERT INTO task_logs (task_id, action, details)
+                VALUES (?, ?, ?)
+            """, (task_id, action, details))
+            
+            conn.commit()
+        
+        return {"message": "Task updated"}
 
-@app.get("/api/auth/me")
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """Informations utilisateur connecté"""
-    return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "full_name": current_user.full_name,
-        "email": current_user.email,
-        "is_active": current_user.is_active,
-        "created_at": current_user.created_at
-    }
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: int, user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        result = conn.execute(
+            "DELETE FROM tasks WHERE id = ?",
+            (task_id,)
+        )
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        conn.commit()
+        return {"message": "Task deleted"}
 
-# ============================================================================
-# 📝 ROUTES GESTION DES TÂCHES ADHD
-# ============================================================================
+@app.get("/daily-summary")
+async def get_daily_summary(user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        # Tasks en cours
+        in_progress = conn.execute("""
+            SELECT title, description, blocked_reason 
+            FROM tasks 
+            WHERE status = 'in_progress'
+            ORDER BY priority DESC
+        """).fetchall()
+        
+        # Tasks bloquées
+        blocked = conn.execute("""
+            SELECT title, blocked_reason 
+            FROM tasks 
+            WHERE status = 'blocked'
+        """).fetchall()
+        
+        # Tasks en standby
+        standby = conn.execute("""
+            SELECT title, description
+            FROM tasks 
+            WHERE status = 'standby'
+        """).fetchall()
+        
+        # Tasks terminées aujourd'hui
+        completed_today = conn.execute("""
+            SELECT title 
+            FROM tasks 
+            WHERE status = 'done' 
+            AND DATE(completed_at) = DATE('now')
+        """).fetchall()
+        
+        # Tasks en review
+        in_review = conn.execute("""
+            SELECT title 
+            FROM tasks 
+            WHERE status = 'review'
+        """).fetchall()
+        
+        # Générer résumé
+        summary = "📋 **DAILY SUMMARY**\n\n"
+        
+        if in_progress:
+            summary += "🔄 **En cours:**\n"
+            for task in in_progress:
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        if completed_today:
+            summary += "✅ **Terminé aujourd'hui:**\n"
+            for task in completed_today:
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        if blocked:
+            summary += "🚫 **Blocages:**\n"
+            for task in blocked:
+                summary += f"- {task['title']}: {task['blocked_reason']}\n"
+            summary += "\n"
+        
+        if standby:
+            summary += "⏸️ **En standby:**\n"
+            for task in standby:
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        if in_review:
+            summary += "⏳ **En review:**\n"
+            for task in in_review:
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        # Rappel si aucune tâche active
+        active_tasks = len(in_progress)
+        if active_tasks == 0:
+            summary += "🎯 **AUCUNE TÂCHE ACTIVE** - Prendre nouveau ticket Trello !\n"
+            summary += "➡️ Voir workflow 'Rappel Tickets' pour actions à faire\n\n"
+        
+        summary += "🎯 **Prochaines étapes:** [À compléter]\n"
+        summary += "💬 **Points à signaler:** [À compléter]"
+        
+        return {"summary": summary, "needs_new_ticket": active_tasks == 0}
 
-@app.get("/api/tasks")
-async def get_tasks(
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    project: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Récupérer toutes les tâches de l'utilisateur"""
-    query = db.query(Task).filter(Task.user_id == current_user.id)
-    
-    if status:
-        query = query.filter(Task.status == status)
-    if priority:
-        query = query.filter(Task.priority == priority)
-    if project:
-        query = query.filter(Task.project == project)
-    
-    tasks = query.order_by(Task.created_at.desc()).all()
-    
-    return [{
-        "id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "status": task.status,
-        "priority": task.priority,
-        "project": task.project,
-        "estimated_duration": task.estimated_duration,
-        "actual_duration": task.actual_duration,
-        "focus_count": task.focus_count,
-        "distraction_count": task.distraction_count,
-        "created_at": task.created_at,
-        "updated_at": task.updated_at,
-        "completed_at": task.completed_at
-    } for task in tasks]
+@app.get("/weekly-summary")
+async def get_weekly_summary(user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        # Stats de la semaine
+        stats = conn.execute("""
+            SELECT 
+                COUNT(CASE WHEN status = 'done' THEN 1 END) as completed_count,
+                COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_count,
+                COUNT(CASE WHEN status = 'blocked' THEN 1 END) as blocked_count,
+                COUNT(CASE WHEN status = 'standby' THEN 1 END) as standby_count,
+                COUNT(*) as total_count
+            FROM tasks 
+            WHERE created_at >= datetime('now', '-7 days')
+        """).fetchone()
+        
+        # Tâches terminées cette semaine
+        completed_week = conn.execute("""
+            SELECT title, completed_at 
+            FROM tasks 
+            WHERE status = 'done' 
+            AND completed_at >= datetime('now', '-7 days')
+            ORDER BY completed_at DESC
+        """).fetchall()
+        
+        # Blocages persistants
+        persistent_blocks = conn.execute("""
+            SELECT title, blocked_reason, updated_at
+            FROM tasks 
+            WHERE status = 'blocked' 
+            AND updated_at <= datetime('now', '-2 days')
+        """).fetchall()
+        
+        # Standby trop long
+        long_standby = conn.execute("""
+            SELECT title, standby_at
+            FROM tasks 
+            WHERE status = 'standby' 
+            AND standby_at <= datetime('now', '-3 days')
+        """).fetchall()
+        
+        summary = "📊 **WEEKLY SUMMARY**\n\n"
+        summary += f"📈 **Stats:** {stats['completed_count']} terminées, {stats['in_progress_count']} en cours, {stats['blocked_count']} bloquées, {stats['standby_count']} en standby\n\n"
+        
+        if completed_week:
+            summary += "✅ **Accompli cette semaine:**\n"
+            for task in completed_week[:5]:  # Top 5
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        if persistent_blocks:
+            summary += "⚠️ **Blocages persistants (>2j):**\n"
+            for task in persistent_blocks:
+                summary += f"- {task['title']}: {task['blocked_reason']}\n"
+            summary += "\n"
+        
+        if long_standby:
+            summary += "⏸️ **Standby trop long (>3j):**\n"
+            for task in long_standby:
+                summary += f"- {task['title']}\n"
+            summary += "\n"
+        
+        summary += "🎯 **Focus semaine prochaine:** [À définir]\n"
+        summary += "📞 **Points pour le responsable:** [À compléter]"
+        
+        return {"summary": summary}
 
-@app.post("/api/tasks")
-async def create_task(
-    task_data: TaskCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Créer une nouvelle tâche"""
-    task = Task(
-        user_id=current_user.id,
-        title=task_data.title,
-        description=task_data.description,
-        status=task_data.status,
-        priority=task_data.priority,
-        project=task_data.project,
-        estimated_duration=task_data.estimated_duration
-    )
-    
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    
-    logger.info(f"Tâche créée par {current_user.username}: {task.title}")
-    
-    return {
-        "id": task.id,
-        "message": "Tâche créée avec succès",
-        "task": {
-            "id": task.id,
-            "title": task.title,
-            "status": task.status,
-            "priority": task.priority
-        }
-    }
+@app.get("/workflows")
+async def get_workflows(user_id: int = Depends(get_current_user)):
+    with get_db() as conn:
+        workflows = conn.execute("""
+            SELECT * FROM workflows 
+            ORDER BY category, name
+        """).fetchall()
+        
+        return [dict(workflow) for workflow in workflows]
 
-@app.put("/api/tasks/{task_id}")
-async def update_task(
-    task_id: int,
-    task_data: TaskUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Mettre à jour une tâche"""
-    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Tâche introuvable")
-    
-    # Mise à jour des champs
-    update_data = task_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(task, field, value)
-    
-    # Marquer comme complété si status = done
-    if task_data.status == "done" and task.status != "done":
-        task.completed_at = datetime.utcnow()
-    
-    task.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(task)
-    
-    logger.info(f"Tâche mise à jour par {current_user.username}: {task.title}")
-    
-    return {"message": "Tâche mise à jour", "task_id": task.id}
+@app.get("/remind-new-ticket")
+async def remind_new_ticket(user_id: int = Depends(get_current_user)):
+    """Endpoint pour rappel de prise de nouveau ticket"""
+    with get_db() as conn:
+        # Vérifier s'il y a des tâches actives
+        active_count = conn.execute("""
+            SELECT COUNT(*) as count FROM tasks 
+            WHERE status = 'in_progress'
+        """).fetchone()['count']
+        
+        if active_count == 0:
+            # Récupérer le workflow de rappel
+            reminder_workflow = conn.execute("""
+                SELECT steps FROM workflows 
+                WHERE category = 'reminder' 
+                LIMIT 1
+            """).fetchone()
+            
+            message = reminder_workflow['steps'] if reminder_workflow else "Prendre un nouveau ticket Trello !"
+            
+            return {
+                "needs_ticket": True,
+                "message": message
+            }
+        
+        return {"needs_ticket": False}
 
-@app.delete("/api/tasks/{task_id}")
-async def delete_task(
-    task_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Supprimer une tâche"""
-    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Tâche introuvable")
-    
-    db.delete(task)
-    db.commit()
-    
-    logger.info(f"Tâche supprimée par {current_user.username}: {task.title}")
-    
-    return {"message": "Tâche supprimée"}
+@app.post("/send-reminder-email")
+async def send_reminder_email(user_id: int = Depends(get_current_user)):
+    """Envoyer un email de rappel si aucune tâche active"""
+    with get_db() as conn:
+        # Récupérer user email
+        user = conn.execute(
+            "SELECT email FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Vérifier s'il y a des tâches actives
+        active_count = conn.execute("""
+            SELECT COUNT(*) as count FROM tasks 
+            WHERE status = 'in_progress'
+        """).fetchone()['count']
+        
+        if active_count == 0:
+            subject = "Rappel - Aucune tâche active"
+            body = """
+🎯 TASKFLOW ADHD - RAPPEL AUTOMATIQUE
 
-# ============================================================================
-# 🎯 ROUTES SESSIONS DE FOCUS ADHD
-# ============================================================================
+Tu n'as aucune tâche active !
 
-@app.post("/api/focus-sessions")
-async def create_focus_session(
-    session_data: FocusSessionCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Enregistrer une session de focus"""
-    # Vérifier que la tâche appartient à l'utilisateur
-    task = db.query(Task).filter(Task.id == session_data.task_id, Task.user_id == current_user.id).first()
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Tâche introuvable")
-    
-    # Créer la session de focus
-    session = FocusSession(
-        user_id=current_user.id,
-        task_id=session_data.task_id,
-        duration=session_data.duration,
-        quality_score=session_data.quality_score,
-        notes=session_data.notes
-    )
-    
-    db.add(session)
-    
-    # Mettre à jour la tâche
-    task.focus_count += 1
-    task.actual_duration += session_data.duration
-    task.updated_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(session)
-    
-    logger.info(f"Session focus enregistrée: {session_data.duration} min par {current_user.username}")
-    
-    return {
-        "message": "Session de focus enregistrée",
-        "session_id": session.id,
-        "duration": session.duration,
-        "quality_score": session.quality_score
-    }
+Actions à faire :
+1. Aller sur Trello → Colonne "Tests-Auto"
+2. Prendre un ticket de test automatisé
+3. OU Aller sur "MEP Tech" → Prendre nouvelle feature
+4. OU Contacter collègue sur tâche partagée pour aider
+5. OU Reprendre tâche en standby si déblocage possible
 
-@app.get("/api/focus-sessions/{task_id}")
-async def get_task_focus_sessions(
-    task_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Récupérer les sessions de focus d'une tâche"""
-    sessions = db.query(FocusSession).filter(
-        FocusSession.task_id == task_id,
-        FocusSession.user_id == current_user.id
-    ).order_by(FocusSession.created_at.desc()).all()
-    
-    return [{
-        "id": session.id,
-        "duration": session.duration,
-        "quality_score": session.quality_score,
-        "notes": session.notes,
-        "created_at": session.created_at
-    } for session in sessions]
+⚠️ Ne JAMAIS rester sans tâche active !
 
-# ============================================================================
-# 📊 ROUTES DAILY MEETINGS ET STATISTIQUES
-# ============================================================================
+Accès à TaskFlow : http://localhost:3003
+            """
+            
+            send_email(user['email'], subject, body)
+            
+            return {"sent": True, "message": "Email de rappel envoyé"}
+        
+        return {"sent": False, "message": "Tâches actives trouvées, pas d'email nécessaire"}
 
-@app.get("/api/daily/today")
-async def get_daily_report(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Rapport quotidien pour daily meeting"""
-    from datetime import date
-    today = date.today()
-    
-    # Tâches du jour
-    today_tasks = db.query(Task).filter(
-        Task.user_id == current_user.id,
-        Task.created_at >= today
-    ).all()
-    
-    completed_today = [t for t in today_tasks if t.status == "done"]
-    in_progress = db.query(Task).filter(
-        Task.user_id == current_user.id,
-        Task.status == "in-progress"
-    ).all()
-    
-    blocked_tasks = db.query(Task).filter(
-        Task.user_id == current_user.id,
-        Task.status == "blocked"
-    ).all()
-    
-    # Sessions de focus du jour
-    today_sessions = db.query(FocusSession).filter(
-        FocusSession.user_id == current_user.id,
-        FocusSession.created_at >= today
-    ).all()
-    
-    total_focus_time = sum([s.duration for s in today_sessions])
-    avg_quality = sum([s.quality_score for s in today_sessions]) / max(len(today_sessions), 1)
-    
-    return {
-        "date": today,
-        "user": current_user.username,
-        "summary": {
-            "tasks_created_today": len(today_tasks),
-            "tasks_completed_today": len(completed_today),
-            "tasks_in_progress": len(in_progress),
-            "blocked_tasks": len(blocked_tasks),
-            "focus_sessions": len(today_sessions),
-            "total_focus_time": total_focus_time,
-            "avg_focus_quality": round(avg_quality, 1)
-        },
-        "completed_tasks": [{"id": t.id, "title": t.title, "project": t.project} for t in completed_today],
-        "in_progress_tasks": [{"id": t.id, "title": t.title, "project": t.project} for t in in_progress],
-        "blocked_tasks": [{"id": t.id, "title": t.title, "reason": t.description} for t in blocked_tasks],
-        "productivity_score": len(completed_today) * 10 + len(today_sessions) * 5
-    }
 
-@app.post("/api/daily/save-report")
-async def save_daily_report(
-    summary: str,
-    challenges: str = "",
-    next_day_goals: str = "",
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Sauvegarder le rapport daily"""
-    from datetime import date
-    today = date.today()
-    
-    # Stats du jour
-    daily_stats = await get_daily_report(current_user, db)
-    
-    report = DailyReport(
-        user_id=current_user.id,
-        report_date=today,
-        tasks_completed=daily_stats["summary"]["tasks_completed_today"],
-        tasks_created=daily_stats["summary"]["tasks_created_today"],
-        total_focus_time=daily_stats["summary"]["total_focus_time"],
-        productivity_score=daily_stats["productivity_score"],
-        summary=summary,
-        challenges=challenges,
-        next_day_goals=next_day_goals
-    )
-    
-    db.add(report)
-    db.commit()
-    db.refresh(report)
-    
-    logger.info(f"Daily report sauvé pour {current_user.username}")
-    
-    return {"message": "Rapport daily sauvegardé", "report_id": report.id}
-
-# ============================================================================
-# 🎯 DONNÉES DE DEMO POUR TESTS
-# ============================================================================
-
-@app.post("/api/demo/init")
-async def init_demo_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Initialiser avec des données de demo pour Paul"""
-    demo_tasks_data = [
-        {
-            "title": "Finaliser API TaskFlow ADHD",
-            "description": "Implémenter PostgreSQL + JWT + Tests",
-            "status": "in-progress",
-            "priority": "high",
-            "project": "TaskFlow",
-            "estimated_duration": 120
-        },
-        {
-            "title": "Daily standup 11h PITER",
-            "description": "Préparer rapport d'avancement",
-            "status": "todo",
-            "priority": "medium",
-            "project": "PITER",
-            "estimated_duration": 15
-        },
-        {
-            "title": "Optimiser Docker Compose",
-            "description": "Résoudre conflits containers",
-            "status": "done",
-            "priority": "high",
-            "project": "DevOps",
-            "estimated_duration": 60
-        }
-    ]
-    
-    for task_data in demo_tasks_data:
-        task = Task(user_id=current_user.id, **task_data)
-        db.add(task)
-    
-    db.commit()
-    
-    logger.info(f"Données de demo créées pour {current_user.username}")
-    
-    return {"message": "Données de demo créées", "tasks_count": len(demo_tasks_data)}
-
-# ============================================================================
-# 🚀 LANCEMENT SERVEUR
-# ============================================================================
+# Initialize on startup
+@app.on_event("startup")
+async def startup():
+    init_db()
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

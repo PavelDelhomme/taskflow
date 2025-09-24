@@ -5,7 +5,7 @@ WORKDIR /app
 # Install curl pour healthcheck
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (pour cache Docker)
+# Copy requirements first
 COPY requirements.txt .
 
 # Install dependencies
@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .
+
+# Create data directory
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 8000

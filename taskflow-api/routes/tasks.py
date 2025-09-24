@@ -7,9 +7,9 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("")
 async def get_tasks(user_id: int = Depends(get_current_user)):
-    with get_db() as conn:
+    with get_db() as cursor:
         # Base commune pour tous les utilisateurs @delhomme.ovh
-        tasks = conn.execute("""
+        cursor.execute("""
             SELECT * FROM tasks 
             ORDER BY 
                 CASE status 
@@ -22,39 +22,37 @@ async def get_tasks(user_id: int = Depends(get_current_user)):
                 END,
                 priority DESC,
                 created_at DESC
-        """).fetchall()
+        """)
         
+        tasks = cursor.fetchall()
         return [dict(task) for task in tasks]
 
 @router.post("")
 async def create_task(task: Task, user_id: int = Depends(get_current_user)):
-    with get_db() as conn:
-        cursor = conn.execute("""
+    with get_db() as cursor:
+        cursor.execute("""
             INSERT INTO tasks (user_id, title, description, priority, trello_id)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
         """, (user_id, task.title, task.description, task.priority, task.trello_id))
         
-        task_id = cursor.lastrowid
+        task_id = cursor.fetchone()['id']
         
         # Log creation
         trello_info = f" (Trello: {task.trello_id})" if task.trello_id else ""
-        conn.execute("""
+        cursor.execute("""
             INSERT INTO task_logs (task_id, action, details)
-            VALUES (?, 'created', ?)
+            VALUES (%s, 'created', %s)
         """, (task_id, f"Task created: {task.title}{trello_info}"))
-        
-        conn.commit()
         
         return {"id": task_id, "message": "Task created"}
 
 @router.put("/{task_id}")
 async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depends(get_current_user)):
-    with get_db() as conn:
+    with get_db() as cursor:
         # Vérifier que la tâche existe
-        existing = conn.execute(
-            "SELECT * FROM tasks WHERE id = ?",
-            (task_id,)
-        ).fetchone()
+        cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+        existing = cursor.fetchone()
         
         if not existing:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -64,15 +62,15 @@ async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depe
         values = []
         
         if task_update.title is not None:
-            update_fields.append("title = ?")
+            update_fields.append("title = %s")
             values.append(task_update.title)
             
         if task_update.description is not None:
-            update_fields.append("description = ?")
+            update_fields.append("description = %s")
             values.append(task_update.description)
             
         if task_update.status is not None:
-            update_fields.append("status = ?")
+            update_fields.append("status = %s")
             values.append(task_update.status)
             
             # Log timestamps selon le statut
@@ -84,26 +82,23 @@ async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depe
                 update_fields.append("standby_at = CURRENT_TIMESTAMP")
                 
         if task_update.priority is not None:
-            update_fields.append("priority = ?")
+            update_fields.append("priority = %s")
             values.append(task_update.priority)
             
         if task_update.blocked_reason is not None:
-            update_fields.append("blocked_reason = ?")
+            update_fields.append("blocked_reason = %s")
             values.append(task_update.blocked_reason)
             
         if task_update.trello_id is not None:
-            update_fields.append("trello_id = ?")
+            update_fields.append("trello_id = %s")
             values.append(task_update.trello_id)
         
         if update_fields:
             update_fields.append("updated_at = CURRENT_TIMESTAMP")
             values.append(task_id)
             
-            conn.execute(f"""
-                UPDATE tasks 
-                SET {', '.join(update_fields)}
-                WHERE id = ?
-            """, values)
+            query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s"
+            cursor.execute(query, values)
             
             # Log action
             action = task_update.status or 'updated'
@@ -113,25 +108,19 @@ async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depe
             if task_update.trello_id:
                 details += f" | Trello: {task_update.trello_id}"
                 
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO task_logs (task_id, action, details)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (task_id, action, details))
-            
-            conn.commit()
         
         return {"message": "Task updated"}
 
 @router.delete("/{task_id}")
 async def delete_task(task_id: int, user_id: int = Depends(get_current_user)):
-    with get_db() as conn:
-        result = conn.execute(
-            "DELETE FROM tasks WHERE id = ?",
-            (task_id,)
-        )
+    with get_db() as cursor:
+        cursor.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
         
-        if result.rowcount == 0:
+        if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Task not found")
         
-        conn.commit()
         return {"message": "Task deleted"}

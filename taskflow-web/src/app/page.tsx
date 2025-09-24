@@ -36,7 +36,7 @@ export default function TaskflowPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
-  const [darkMode, setDarkMode] = useState(true) // Mode sombre par défaut
+  const [darkMode, setDarkMode] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDailyModal, setShowDailyModal] = useState(false)
@@ -51,7 +51,6 @@ export default function TaskflowPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   
-  // Auth forms
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -64,7 +63,6 @@ export default function TaskflowPage() {
     full_name: ''
   })
   
-  // Nouveau task form
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -75,6 +73,55 @@ export default function TaskflowPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008'
 
   useEffect(() => {
+    // Ajouter les styles CSS personnalisés
+    const style = document.createElement('style')
+    style.textContent = `
+      /* Placeholders visibles en mode sombre */
+      .bg-dark input::placeholder,
+      .bg-dark textarea::placeholder {
+        color: #adb5bd !important;
+        opacity: 1;
+      }
+      
+      input::placeholder,
+      textarea::placeholder {
+        color: #6c757d !important;
+        opacity: 1;
+      }
+      
+      .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+      }
+      
+      .bg-dark .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        background-color: #343a40;
+        color: white;
+      }
+      
+      .bg-dark .form-select {
+        background-color: #343a40;
+        border-color: #495057;
+        color: white;
+      }
+      
+      .bg-dark .form-select option {
+        background-color: #343a40;
+        color: white;
+      }
+      
+      .card {
+        border-radius: 10px;
+      }
+      
+      .btn {
+        border-radius: 6px;
+      }
+    `
+    document.head.appendChild(style)
+
     const savedToken = localStorage.getItem('token')
     if (savedToken) {
       setToken(savedToken)
@@ -84,12 +131,15 @@ export default function TaskflowPage() {
       checkForReminders(savedToken)
       initNotifications()
       
-      // Check périodique pour rappels (toutes les 30 minutes)
       const interval = setInterval(() => {
         checkForReminders(savedToken)
       }, 30 * 60 * 1000)
       
       return () => clearInterval(interval)
+    }
+
+    return () => {
+      document.head.removeChild(style)
     }
   }, [])
 
@@ -146,7 +196,7 @@ export default function TaskflowPage() {
 
   const checkForReminders = async (authToken: string) => {
     try {
-      const response = await fetch(`${API_URL}/remind-new-ticket`, {
+      const response = await fetch(`${API_URL}/workflows/remind-new-ticket`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -155,20 +205,50 @@ export default function TaskflowPage() {
         const data = await response.json()
         if (data.needs_ticket) {
           setReminderMessage(data.message)
-          
-          // Notification push si autorisée
           sendNotification(
             '🎯 TaskFlow ADHD - Rappel',
             'Aucune tâche active ! Prendre un nouveau ticket Trello.',
             { tag: 'no-active-tasks' }
           )
-          
-          // Afficher modal après un délai
           setTimeout(() => setShowReminderModal(true), 2000)
         }
       }
     } catch (error) {
       console.error('Error checking reminders:', error)
+    }
+  }
+
+  const fetchDailySummary = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reports/daily-summary`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setDailySummary(data.summary)
+        setShowDailyModal(true)
+      }
+    } catch (error) {
+      console.error('Error fetching daily summary:', error)
+    }
+  }
+
+  const fetchWeeklySummary = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reports/weekly-summary`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setWeeklySummary(data.summary)
+        setShowWeeklyModal(true)
+      }
+    } catch (error) {
+      console.error('Error fetching weekly summary:', error)
     }
   }
 
@@ -195,6 +275,7 @@ export default function TaskflowPage() {
       } else {
         const error = await response.json()
         alert('Erreur de connexion: ' + error.detail)
+        console.error('Login error:', error)
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -224,11 +305,12 @@ export default function TaskflowPage() {
         initNotifications()
       } else {
         const error = await response.json()
-        alert('Erreur d\'inscription: ' + error.detail)
+        alert("Erreur d'inscription: " + error.detail)
+        console.error('Register error:', error)
       }
     } catch (error) {
       console.error('Register error:', error)
-      alert('Erreur d\'inscription')
+      alert("Erreur d'inscription")
     }
   }
 
@@ -256,8 +338,6 @@ export default function TaskflowPage() {
         setNewTask({ title: '', description: '', priority: 'medium', trello_id: '' })
         setShowCreateModal(false)
         fetchTasks(token)
-        
-        // Notification de succès
         sendNotification('✅ Tâche créée', `"${newTask.title}" a été ajoutée`)
       }
     } catch (error) {
@@ -281,16 +361,14 @@ export default function TaskflowPage() {
         setShowEditModal(false)
         setSelectedTask(null)
         
-        // Notification selon l'action
         if (updates.status === 'done') {
           sendNotification('🎉 Tâche terminée !', 'Bravo ! Pense à prendre un nouveau ticket.')
         } else if (updates.status === 'blocked') {
-          sendNotification('🚫 Tâche bloquée', 'N\'oublie pas de débloquer ou prendre un autre ticket.')
+          sendNotification('🚫 Tâche bloquée', "N'oublie pas de débloquer ou prendre un autre ticket.")
         } else if (updates.status === 'standby') {
           sendNotification('⏸️ Tâche en standby', 'Tâche mise en pause. Prendre un autre ticket ?')
         }
         
-        // Recheck pour les rappels après update
         setTimeout(() => checkForReminders(token), 1000)
       }
     } catch (error) {
@@ -316,42 +394,6 @@ export default function TaskflowPage() {
       }
     } catch (error) {
       console.error('Error deleting task:', error)
-    }
-  }
-
-  const fetchDailySummary = async () => {
-    try {
-      const response = await fetch(`${API_URL}/daily-summary`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setDailySummary(data.summary)
-        setShowDailyModal(true)
-      }
-    } catch (error) {
-      console.error('Error fetching daily summary:', error)
-    }
-  }
-
-  const fetchWeeklySummary = async () => {
-    try {
-      const response = await fetch(`${API_URL}/weekly-summary`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setWeeklySummary(data.summary)
-        setShowWeeklyModal(true)
-      }
-    } catch (error) {
-      console.error('Error fetching weekly summary:', error)
     }
   }
 
@@ -430,7 +472,6 @@ export default function TaskflowPage() {
   const getTaskActions = (task: Task) => {
     const actions = []
     
-    // Actions selon le statut
     if (task.status === 'todo') {
       actions.push(
         <button key="start" className="btn btn-primary btn-sm me-1 mb-1" onClick={() => handleTaskAction(task, 'start')}>
@@ -464,7 +505,6 @@ export default function TaskflowPage() {
       )
     }
     
-    // Actions communes
     actions.push(
       <button key="edit" className="btn btn-outline-secondary btn-sm me-1 mb-1" onClick={() => handleTaskAction(task, 'edit')}>
         ✏️ Modifier
@@ -477,10 +517,9 @@ export default function TaskflowPage() {
     return actions
   }
 
-  // Vérifier si aucune tâche active
   const activeTasks = tasks.filter(t => t.status === 'in_progress')
   const needsNewTicket = activeTasks.length === 0 && tasks.length > 0
-  
+
   if (!isLoggedIn) {
     return (
       <div className={`min-vh-100 d-flex align-items-center justify-content-center ${darkMode ? 'bg-dark text-white' : 'bg-light'}`}>
@@ -495,7 +534,7 @@ export default function TaskflowPage() {
                   <input
                     type="email"
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    placeholder="Email (@delhomme.ovh)"
+                    placeholder="Email (exemple: paul@delhomme.ovh)"
                     value={loginForm.email}
                     onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
                     onKeyPress={(e) => e.key === 'Enter' && login()}
@@ -517,6 +556,11 @@ export default function TaskflowPage() {
                 <button className="btn btn-outline-secondary w-100" onClick={() => setShowRegister(true)}>
                   Créer un compte
                 </button>
+                <div className="mt-3 small text-muted">
+                  <strong>Compte de test :</strong><br/>
+                  Email: paul@delhomme.ovh<br/>
+                  Mot de passe: 2H8'Z&sx@QW+X=v,dz[tnsv$F
+                </div>
               </>
             ) : (
               <>
@@ -525,7 +569,7 @@ export default function TaskflowPage() {
                   <input
                     type="text"
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    placeholder="Nom d'utilisateur"
+                    placeholder="Nom d'utilisateur (exemple: pauld)"
                     value={registerForm.username}
                     onChange={(e) => setRegisterForm({...registerForm, username: e.target.value})}
                   />
@@ -534,7 +578,7 @@ export default function TaskflowPage() {
                   <input
                     type="email"
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    placeholder="Email (@delhomme.ovh)"
+                    placeholder="Email (doit finir par @delhomme.ovh)"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
                   />
@@ -543,7 +587,7 @@ export default function TaskflowPage() {
                   <input
                     type="text"
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    placeholder="Nom complet"
+                    placeholder="Nom complet (exemple: Paul Delhomme)"
                     value={registerForm.full_name}
                     onChange={(e) => setRegisterForm({...registerForm, full_name: e.target.value})}
                   />
@@ -552,7 +596,7 @@ export default function TaskflowPage() {
                   <input
                     type="password"
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    placeholder="Mot de passe"
+                    placeholder="Mot de passe (minimum 6 caractères)"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm({...registerForm, password: e.target.value})}
                   />
@@ -573,7 +617,6 @@ export default function TaskflowPage() {
 
   return (
     <div className={`min-vh-100 ${darkMode ? 'bg-dark text-white' : 'bg-light'}`}>
-      {/* Header */}
       <nav className={`navbar sticky-top ${darkMode ? 'navbar-dark bg-dark border-bottom border-secondary' : 'navbar-light bg-white'} shadow-sm`}>
         <div className="container-fluid">
           <span className="navbar-brand">🎯 TaskFlow ADHD</span>
@@ -624,7 +667,6 @@ export default function TaskflowPage() {
         </div>
       </nav>
 
-      {/* Alert si aucune tâche active */}
       {needsNewTicket && (
         <div className="container mt-3">
           <div className="alert alert-warning d-flex align-items-center" role="alert">
@@ -642,10 +684,8 @@ export default function TaskflowPage() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="container mt-4">
         <div className="row g-3">
-          {/* En cours */}
           <div className="col-12 col-lg-6">
             <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
               <div className="card-header bg-primary text-white">
@@ -655,13 +695,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'in_progress').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
-                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.trello_id && (
                         <small className="text-info d-block mb-1">
                           🔗 Trello: {task.trello_id}
                         </small>
                       )}
-                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.description && (
                         <p className="card-text small text-muted mb-1">{task.description}</p>
                       )}
@@ -682,7 +721,6 @@ export default function TaskflowPage() {
             </div>
           </div>
 
-          {/* À faire */}
           <div className="col-12 col-lg-6">
             <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
               <div className="card-header bg-secondary text-white">
@@ -693,7 +731,6 @@ export default function TaskflowPage() {
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
                       <h6 className="card-title mb-1 small">{task.title}</h6>
-                      {/* ✅ AJOUT : Affichage Trello ID */}
                       {task.trello_id && (
                         <small className="text-info d-block mb-1">
                           🔗 Trello: {task.trello_id}
@@ -716,7 +753,6 @@ export default function TaskflowPage() {
             </div>
           </div>
 
-          {/* Standby */}
           <div className="col-12 col-lg-6">
             <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
               <div className="card-header bg-warning text-dark">
@@ -726,13 +762,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'standby').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
-                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.trello_id && (
                         <small className="text-info d-block mb-1">
                           🔗 Trello: {task.trello_id}
                         </small>
                       )}
-                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       <div className="mb-2">
                         {getStatusBadge(task.status)}
                         {getPriorityBadge(task.priority)}
@@ -747,7 +782,6 @@ export default function TaskflowPage() {
             </div>
           </div>
 
-          {/* Bloqué */}
           <div className="col-12 col-lg-6">
             <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
               <div className="card-header bg-danger text-white">
@@ -757,13 +791,12 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'blocked').map(task => (
                   <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                     <div className="card-body p-2">
-                      {/* ✅ AJOUT : Affichage Trello ID */}
+                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.trello_id && (
                         <small className="text-info d-block mb-1">
                           🔗 Trello: {task.trello_id}
                         </small>
                       )}
-                      <h6 className="card-title mb-1 small">{task.title}</h6>
                       {task.blocked_reason && (
                         <div className="alert alert-danger py-1 mb-1 small">
                           <strong>Blocage:</strong> {task.blocked_reason}
@@ -783,10 +816,8 @@ export default function TaskflowPage() {
             </div>
           </div>
 
-          {/* Review + Terminé */}
           <div className="col-12">
             <div className="row g-3">
-              {/* Review */}
               <div className="col-lg-6">
                 <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
                   <div className="card-header bg-info text-white">
@@ -796,13 +827,12 @@ export default function TaskflowPage() {
                     {tasks.filter(t => t.status === 'review').map(task => (
                       <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                         <div className="card-body p-2">
-                          {/* ✅ AJOUT : Affichage Trello ID */}
+                          <h6 className="card-title mb-1 small">{task.title}</h6>
                           {task.trello_id && (
                             <small className="text-info d-block mb-1">
                               🔗 Trello: {task.trello_id}
                             </small>
                           )}
-                          <h6 className="card-title mb-1 small">{task.title}</h6>
                           <div className="mb-2">
                             {getStatusBadge(task.status)}
                             {getPriorityBadge(task.priority)}
@@ -817,7 +847,6 @@ export default function TaskflowPage() {
                 </div>
               </div>
 
-              {/* Terminé */}
               <div className="col-lg-6">
                 <div className={`card ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
                   <div className="card-header bg-success text-white">
@@ -827,13 +856,12 @@ export default function TaskflowPage() {
                     {tasks.filter(t => t.status === 'done').slice(0, 3).map(task => (
                       <div key={task.id} className={`card mb-2 ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}>
                         <div className="card-body p-2">
-                          {/* ✅ AJOUT : Affichage Trello ID */}
+                          <h6 className="card-title mb-1 small">{task.title}</h6>
                           {task.trello_id && (
                             <small className="text-info d-block mb-1">
                               🔗 Trello: {task.trello_id}
                             </small>
                           )}
-                          <h6 className="card-title mb-1 small">{task.title}</h6>
                           <div className="d-flex justify-content-between align-items-center">
                             <div>
                               {getStatusBadge(task.status)}
@@ -860,92 +888,6 @@ export default function TaskflowPage() {
         </div>
       </div>
 
-      {/* Modal Notifications */}
-      {showNotificationModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowNotificationModal(false)}>
-          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-            <div className={`modal-content ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
-              <div className="modal-header">
-                <h5 className="modal-title">🔔 Notifications Push</h5>
-                <button className="btn-close" onClick={() => setShowNotificationModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="alert alert-info">
-                  <strong>Status:</strong> {notificationsEnabled ? '✅ Activées' : '❌ Désactivées'}
-                </div>
-                <p>Les notifications push vous alertent pour :</p>
-                <ul>
-                  <li>Rappel de prendre un nouveau ticket quand aucune tâche active</li>
-                  <li>Confirmation de création/modification de tâches</li>
-                  <li>Tâches terminées ou bloquées</li>
-                </ul>
-                {!notificationsEnabled && (
-                  <div className="alert alert-warning">
-                    <strong>⚠️ Notifications désactivées</strong><br />
-                    Pour les activer, cliquez sur "Autoriser" dans votre navigateur ou vérifiez les paramètres du site.
-                  </div>
-                )}
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    initNotifications()
-                    setTimeout(() => {
-                      sendNotification('🎯 Test TaskFlow', 'Les notifications sont activées !')
-                    }, 500)
-                  }}
-                >
-                  Tester les notifications
-                </button>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowNotificationModal(false)}>
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Rappel Nouveau Ticket */}
-      {showReminderModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowReminderModal(false)}>
-          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-            <div className={`modal-content ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
-              <div className="modal-header bg-warning text-dark">
-                <h5 className="modal-title">⚠️ Rappel : Prendre nouveau ticket</h5>
-                <button className="btn-close" onClick={() => setShowReminderModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="alert alert-warning">
-                  <strong>Tu n'as aucune tâche active !</strong>
-                </div>
-                <pre style={{fontSize: '14px', whiteSpace: 'pre-wrap'}}>
-                  {reminderMessage || `🎯 AUCUNE TÂCHE ACTIVE - Actions à faire:
-
-1. Aller sur Trello → Colonne "Tests-Auto"
-2. Prendre un ticket de test automatisé
-3. OU Aller sur "MEP Tech" → Prendre nouvelle feature
-4. OU Contacter collègue sur tâche partagée pour aider
-5. OU Reprendre tâche en standby si déblocage possible
-
-⚠️ Ne JAMAIS rester sans tâche active !`}
-                </pre>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-warning" onClick={() => copyToClipboard(reminderMessage)}>
-                  📋 Copier
-                </button>
-                <button className="btn btn-secondary" onClick={() => setShowReminderModal(false)}>
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Autres modaux (création, édition, daily, weekly, workflows) - identiques à avant mais condensés */}
       {/* Modal Création tâche */}
       {showCreateModal && (
         <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowCreateModal(false)}>
@@ -977,15 +919,15 @@ export default function TaskflowPage() {
                   />
                 </div>
                 <div className="mb-3">
-                <label className="form-label">ID Ticket Trello (optionnel)</label>
-                <input
-                  type="text"
-                  className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                  value={newTask.trello_id}
-                  onChange={(e) => setNewTask({...newTask, trello_id: e.target.value})}
-                  placeholder="Ex: abc123def456"
-                />
-              </div>
+                  <label className="form-label">ID Ticket Trello (optionnel)</label>
+                  <input
+                    type="text"
+                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={newTask.trello_id}
+                    onChange={(e) => setNewTask({...newTask, trello_id: e.target.value})}
+                    placeholder="Ex: abc123def456"
+                  />
+                </div>
                 <div className="mb-3">
                   <label className="form-label">Priorité</label>
                   <select
@@ -1006,79 +948,6 @@ export default function TaskflowPage() {
                 </button>
                 <button className="btn btn-primary" onClick={createTask} disabled={!newTask.title}>
                   Créer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Modification tâche */}
-      {showEditModal && selectedTask && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowEditModal(false)}>
-          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
-            <div className={`modal-content ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
-              <div className="modal-header">
-                <h5 className="modal-title">✏️ Modifier la tâche</h5>
-                <button className="btn-close" onClick={() => setShowEditModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Titre *</label>
-                  <input
-                    type="text"
-                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    value={selectedTask.title}
-                    onChange={(e) => setSelectedTask({...selectedTask, title: e.target.value})}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    rows={3}
-                    value={selectedTask.description || ''}
-                    onChange={(e) => setSelectedTask({...selectedTask, description: e.target.value})}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">ID Ticket Trello</label>
-                  <input
-                    type="text"
-                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    value={selectedTask.trello_id || ''}
-                    onChange={(e) => setSelectedTask({...selectedTask, trello_id: e.target.value})}
-                    placeholder="Ex: abc123def456"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Priorité</label>
-                  <select
-                    className={`form-select ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
-                    value={selectedTask.priority}
-                    onChange={(e) => setSelectedTask({...selectedTask, priority: e.target.value})}
-                  >
-                    <option value="low">Basse</option>
-                    <option value="medium">Moyenne</option>
-                    <option value="high">Haute</option>
-                    <option value="urgent">Urgente</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Annuler
-                </button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => updateTask(selectedTask.id, {
-                    title: selectedTask.title,
-                    description: selectedTask.description,
-                    priority: selectedTask.priority,
-                    trello_id: selectedTask.trello_id
-                  })}
-                >
-                  Sauvegarder
                 </button>
               </div>
             </div>
@@ -1140,69 +1009,6 @@ export default function TaskflowPage() {
                   📋 Copier
                 </button>
                 <button className="btn btn-secondary" onClick={() => setShowWeeklyModal(false)}>
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Workflows */}
-      {showWorkflowModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowWorkflowModal(false)}>
-          <div className="modal-dialog modal-lg" onClick={e => e.stopPropagation()}>
-            <div className={`modal-content ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
-              <div className="modal-header">
-                <h5 className="modal-title">📋 Workflows & Checklists</h5>
-                <button className="btn-close" onClick={() => setShowWorkflowModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="list-group">
-                      {workflows.map(workflow => (
-                        <button
-                          key={workflow.id}
-                          className={`list-group-item list-group-item-action ${
-                            selectedWorkflow?.id === workflow.id ? 'active' : ''
-                          } ${darkMode ? 'bg-secondary text-white border-secondary' : ''}`}
-                          onClick={() => setSelectedWorkflow(workflow)}
-                        >
-                          <div className="d-flex w-100 justify-content-between">
-                            <h6 className="mb-1 small">{workflow.name}</h6>
-                            <small className="badge bg-info">{workflow.category}</small>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-md-8">
-                    {selectedWorkflow ? (
-                      <div>
-                        <h5>{selectedWorkflow.name}</h5>
-                        <div className="alert alert-info">
-                          <pre style={{fontSize: '12px', margin: 0}}>
-                            {selectedWorkflow.steps}
-                          </pre>
-                        </div>
-                        <button 
-                          className="btn btn-success"
-                          onClick={() => copyToClipboard(selectedWorkflow.steps)}
-                        >
-                          📋 Copier ce workflow
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-center text-muted">
-                        <p>Sélectionnez un workflow pour voir les détails</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowWorkflowModal(false)}>
                   Fermer
                 </button>
               </div>

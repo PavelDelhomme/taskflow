@@ -1,0 +1,109 @@
+# ============================================================================
+# 🎯 TaskFlow ADHD - Docker Compose PORTS SÉCURISÉS PAUL
+# ÉVITE tous les ports PITER: 8081:80, 15672, 1025, 3306, 3310, 3519, 80, 8025, 5672, 3579
+# UTILISE: Web:3003 | API:8008 | DB:5435
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # 🔥 API FastAPI TaskFlow ADHD
+  taskflow-api:
+    build:
+      context: ./taskflow-api
+      dockerfile: Dockerfile
+    container_name: taskflow-api-paul
+    ports:
+      - "8008:8000"  # Port externe 8008 (évite 8000, 8025, 8081)
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://taskflow:taskflow123@taskflow-db:5432/taskflow_adhd
+      - SECRET_KEY=taskflow-adhd-secret-key-paul-delhomme-2025
+      - CORS_ORIGINS=http://localhost:3003,http://taskflow-web:3000
+    volumes:
+      - ./taskflow-api:/app
+      - taskflow_api_data:/app/data
+    networks:
+      - taskflow-network
+    depends_on:
+      - taskflow-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 🌐 Web Next.js TaskFlow ADHD  
+  taskflow-web:
+    build:
+      context: ./taskflow-web
+      dockerfile: Dockerfile
+    container_name: taskflow-web-paul
+    ports:
+      - "3003:3000"  # Port externe 3003 (évite 3306, 3310, 3519, 3579)
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8008
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - ./taskflow-web:/app
+      - /app/node_modules
+    networks:
+      - taskflow-network
+    depends_on:
+      - taskflow-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 🗄️ Base de données PostgreSQL TaskFlow
+  taskflow-db:
+    image: postgres:15-alpine
+    container_name: taskflow-db-paul
+    ports:
+      - "5435:5432"  # Port externe 5435 (évite 5672)
+    environment:
+      - POSTGRES_DB=taskflow_adhd
+      - POSTGRES_USER=taskflow
+      - POSTGRES_PASSWORD=taskflow123
+    volumes:
+      - taskflow_postgres_data:/var/lib/postgresql/data
+      - ./taskflow-api/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - taskflow-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow_adhd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  taskflow-network:
+    name: taskflow-network-paul
+    driver: bridge
+
+volumes:
+  taskflow_postgres_data:
+    name: taskflow_postgres_data_paul
+  taskflow_api_data:
+    name: taskflow_api_data_paul
+
+# 📋 PORTS UTILISÉS PAR CE PROJET:
+# - 3003: TaskFlow Web (Next.js)
+# - 8008: TaskFlow API (FastAPI)  
+# - 5435: TaskFlow DB (PostgreSQL)
+#
+# 🚫 PORTS ÉVITÉS (utilisés par PITER):
+# - 8081, 80, 8025: Ports HTTP PITER
+# - 15672, 5672: RabbitMQ PITER
+# - 1025: SMTP PITER  
+# - 3306, 3310: MySQL PITER
+# - 3519, 3579: Autres services PITER

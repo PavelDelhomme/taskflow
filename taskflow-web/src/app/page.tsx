@@ -51,6 +51,10 @@ export default function TaskflowPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   
+  // 👁️ États pour show/hide password
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+  
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -118,6 +122,31 @@ export default function TaskflowPage() {
       
       .btn {
         border-radius: 6px;
+      }
+      
+      /* Style pour bouton show/hide password */
+      .password-toggle {
+        position: relative;
+      }
+      
+      .password-toggle-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        z-index: 3;
+      }
+      
+      .bg-dark .password-toggle-btn {
+        color: #adb5bd;
+      }
+      
+      .password-toggle-btn:hover {
+        color: #0d6efd;
       }
     `
     document.head.appendChild(style)
@@ -540,15 +569,24 @@ export default function TaskflowPage() {
                     onKeyPress={(e) => e.key === 'Enter' && login()}
                   />
                 </div>
-                <div className="mb-3">
+                <div className="mb-3 password-toggle">
                   <input
-                    type="password"
+                    type={showLoginPassword ? "text" : "password"}
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
                     placeholder="Mot de passe"
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                     onKeyPress={(e) => e.key === 'Enter' && login()}
+                    style={{ paddingRight: '40px' }}
                   />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    title={showLoginPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showLoginPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
                 <button className="btn btn-primary w-100 mb-2" onClick={login}>
                   Se connecter
@@ -592,14 +630,23 @@ export default function TaskflowPage() {
                     onChange={(e) => setRegisterForm({...registerForm, full_name: e.target.value})}
                   />
                 </div>
-                <div className="mb-3">
+                <div className="mb-3 password-toggle">
                   <input
-                    type="password"
+                    type={showRegisterPassword ? "text" : "password"}
                     className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
                     placeholder="Mot de passe (minimum 6 caractères)"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm({...registerForm, password: e.target.value})}
+                    style={{ paddingRight: '40px' }}
                   />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                    title={showRegisterPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showRegisterPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
                 <button className="btn btn-primary w-100 mb-2" onClick={register}>
                   S'inscrire
@@ -979,6 +1026,114 @@ export default function TaskflowPage() {
                 </button>
                 <button className="btn btn-secondary" onClick={() => setShowDailyModal(false)}>
                   Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      // ✅ MODAL EDIT TÂCHE COMPLÈTE
+      {showEditModal && selectedTask && (
+        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} onClick={() => setShowEditModal(false)}>
+          <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+            <div className={`modal-content ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}>
+              <div className="modal-header">
+                <h5 className="modal-title">✏️ Modifier la tâche</h5>
+                <button className="btn-close" onClick={() => setShowEditModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Titre *</label>
+                  <input
+                    type="text"
+                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={selectedTask.title}
+                    onChange={(e) => setSelectedTask({...selectedTask, title: e.target.value})}
+                    placeholder="Titre de la tâche"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    rows={3}
+                    value={selectedTask.description || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, description: e.target.value})}
+                    placeholder="Description détaillée..."
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">ID Ticket Trello</label>
+                  <input
+                    type="text"
+                    className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={selectedTask.trello_id || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, trello_id: e.target.value})}
+                    placeholder="Ex: abc123def456"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Statut</label>
+                  <select
+                    className={`form-select ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={selectedTask.status}
+                    onChange={(e) => setSelectedTask({...selectedTask, status: e.target.value})}
+                  >
+                    <option value="todo">À faire</option>
+                    <option value="in_progress">En cours</option>
+                    <option value="blocked">Bloqué</option>
+                    <option value="standby">Standby</option>
+                    <option value="review">Review</option>
+                    <option value="done">Terminé</option>
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Priorité</label>
+                  <select
+                    className={`form-select ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                    value={selectedTask.priority}
+                    onChange={(e) => setSelectedTask({...selectedTask, priority: e.target.value})}
+                  >
+                    <option value="low">Basse</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
+                {selectedTask.status === 'blocked' && (
+                  <div className="mb-3">
+                    <label className="form-label">Raison du blocage</label>
+                    <textarea
+                      className={`form-control ${darkMode ? 'bg-dark text-white border-secondary' : ''}`}
+                      rows={2}
+                      value={selectedTask.blocked_reason || ''}
+                      onChange={(e) => setSelectedTask({...selectedTask, blocked_reason: e.target.value})}
+                      placeholder="Expliquez le blocage..."
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                  Annuler
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    updateTask(selectedTask.id, {
+                      title: selectedTask.title,
+                      description: selectedTask.description,
+                      status: selectedTask.status,
+                      priority: selectedTask.priority,
+                      blocked_reason: selectedTask.blocked_reason,
+                      trello_id: selectedTask.trello_id
+                    })
+                  }}
+                  disabled={!selectedTask.title}
+                >
+                  Sauvegarder
                 </button>
               </div>
             </div>

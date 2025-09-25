@@ -1,126 +1,256 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models import Task, TaskUpdate
-from auth import get_current_user
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
+
 from database import get_db
+from auth import get_current_user
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+# Router
+router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
-@router.get("")
-async def get_tasks(user_id: int = Depends(get_current_user)):
+# Models
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    priority: str = "medium"  # low, medium, high
+    trello_id: Optional[str] = None
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None  # todo, in_progress, done, blocked, standby
+    priority: Optional[str] = None
+    blocked_reason: Optional[str] = None
+    trello_id: Optional[str] = None
+
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    status: str
+    priority: str
+    trello_id: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    blocked_reason: Optional[str]
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    standby_at: Optional[datetime]
+
+# 📋 ROUTES TASKS
+
+@router.post("/", response_model=TaskResponse)
+async def create_task(task_data: TaskCreate, current_user = Depends(get_current_user)):
+    """Créer une nouvelle tâche"""
+    
     with get_db() as cursor:
-        # Base commune pour tous les utilisateurs @delhomme.ovh
         cursor.execute("""
-            SELECT * FROM tasks 
-            ORDER BY 
-                CASE status 
-                    WHEN 'in_progress' THEN 1
-                    WHEN 'blocked' THEN 2
-                    WHEN 'standby' THEN 3
-                    WHEN 'todo' THEN 4
-                    WHEN 'review' THEN 5
-                    WHEN 'done' THEN 6
-                END,
-                priority DESC,
-                created_at DESC
-        """)
-        
-        tasks = cursor.fetchall()
-        return [dict(task) for task in tasks]
-
-@router.post("")
-async def create_task(task: Task, user_id: int = Depends(get_current_user)):
-    with get_db() as cursor:
-        cursor.execute("""
-            INSERT INTO tasks (user_id, title, description, priority, trello_id)
+            INSERT INTO tasks (user_id, title, description, priority, trello_id) 
             VALUES (%s, %s, %s, %s, %s)
-            RETURNING id
-        """, (user_id, task.title, task.description, task.priority, task.trello_id))
+            RETURNING *
+        """, (
+            current_user["user_id"],
+            task_data.title,
+            task_data.description,
+            task_data.priority,
+            task_data.trello_id
+        ))
         
-        task_id = cursor.fetchone()['id']
+        new_task = cursor.fetchone()
         
-        # Log creation
-        trello_info = f" (Trello: {task.trello_id})" if task.trello_id else ""
+        # Log création
         cursor.execute("""
-            INSERT INTO task_logs (task_id, action, details)
-            VALUES (%s, 'created', %s)
-        """, (task_id, f"Task created: {task.title}{trello_info}"))
+            INSERT INTO task_logs (task_id, action, details) 
+            VALUES (%s, %s, %s)
+        """, (new_task["id"], "created", f"Task created: {task_data.title}"))
         
-        return {"id": task_id, "message": "Task created"}
+        return new_task
 
-@router.put("/{task_id}")
-async def update_task(task_id: int, task_update: TaskUpdate, user_id: int = Depends(get_current_user)):
+@router.get("/", response_model=List[TaskResponse])
+async def get_tasks(
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    limit: int = 50,
+    current_user = Depends(get_current_user)
+):
+    """Récupérer toutes les tâches de l'utilisateur"""
+    
+    with get_db() as cursor:
+        # Base query
+        query = "SELECT * FROM tasks WHERE user_id = %s"
+        params = [current_user["user_id"]]
+        
+        # Filtres optionnels
+        if status:
+            query += " AND status = %s"
+            params.append(status)
+            
+        if priority:
+            query += " AND priority = %s"
+            params.append(priority)
+            
+        query += " ORDER BY created_at DESC LIMIT %s"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        tasks = cursor.fetchall()
+        
+        return tasks
+
+@router.get("/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: int, current_user = Depends(get_current_user)):
+    """Récupérer une tâche spécifique"""
+    
+    with get_db() as cursor:
+        cursor.execute(
+            "SELECT * FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, current_user["user_id"])
+        )
+        task = cursor.fetchone()
+        
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+            
+        return task
+
+@router.put("/{task_id}", response_model=TaskResponse)
+async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depends(get_current_user)):
+    """Mettre à jour une tâche"""
+    
     with get_db() as cursor:
         # Vérifier que la tâche existe
-        cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-        existing = cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, current_user["user_id"])
+        )
+        existing_task = cursor.fetchone()
         
-        if not existing:
+        if not existing_task:
             raise HTTPException(status_code=404, detail="Task not found")
         
-        # Update fields
+        # Construire requête UPDATE dynamique
         update_fields = []
-        values = []
+        params = []
         
-        if task_update.title is not None:
+        if task_data.title is not None:
             update_fields.append("title = %s")
-            values.append(task_update.title)
+            params.append(task_data.title)
             
-        if task_update.description is not None:
+        if task_data.description is not None:
             update_fields.append("description = %s")
-            values.append(task_update.description)
+            params.append(task_data.description)
             
-        if task_update.status is not None:
+        if task_data.status is not None:
             update_fields.append("status = %s")
-            values.append(task_update.status)
+            params.append(task_data.status)
             
-            # Log timestamps selon le statut
-            if task_update.status == 'in_progress' and existing['status'] != 'in_progress':
+            # Auto-timestamps selon status
+            if task_data.status == "in_progress":
                 update_fields.append("started_at = CURRENT_TIMESTAMP")
-            elif task_update.status == 'done' and existing['status'] != 'done':
+            elif task_data.status == "done":
                 update_fields.append("completed_at = CURRENT_TIMESTAMP")
-            elif task_update.status == 'standby' and existing['status'] != 'standby':
+            elif task_data.status == "standby":
                 update_fields.append("standby_at = CURRENT_TIMESTAMP")
                 
-        if task_update.priority is not None:
+        if task_data.priority is not None:
             update_fields.append("priority = %s")
-            values.append(task_update.priority)
+            params.append(task_data.priority)
             
-        if task_update.blocked_reason is not None:
+        if task_data.blocked_reason is not None:
             update_fields.append("blocked_reason = %s")
-            values.append(task_update.blocked_reason)
+            params.append(task_data.blocked_reason)
             
-        if task_update.trello_id is not None:
+        if task_data.trello_id is not None:
             update_fields.append("trello_id = %s")
-            values.append(task_update.trello_id)
+            params.append(task_data.trello_id)
         
-        if update_fields:
-            update_fields.append("updated_at = CURRENT_TIMESTAMP")
-            values.append(task_id)
-            
-            query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s"
-            cursor.execute(query, values)
-            
-            # Log action
-            action = task_update.status or 'updated'
-            details = f"Status: {task_update.status}" if task_update.status else "Task updated"
-            if task_update.blocked_reason:
-                details += f" | Blocked: {task_update.blocked_reason}"
-            if task_update.trello_id:
-                details += f" | Trello: {task_update.trello_id}"
-                
-            cursor.execute("""
-                INSERT INTO task_logs (task_id, action, details)
-                VALUES (%s, %s, %s)
-            """, (task_id, action, details))
+        # Toujours mettre à jour updated_at
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
         
-        return {"message": "Task updated"}
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        # Exécuter UPDATE
+        query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s AND user_id = %s RETURNING *"
+        params.extend([task_id, current_user["user_id"]])
+        
+        cursor.execute(query, params)
+        updated_task = cursor.fetchone()
+        
+        # Log changement
+        changes = [f"{field}={value}" for field, value in task_data.dict(exclude_unset=True).items()]
+        cursor.execute("""
+            INSERT INTO task_logs (task_id, action, details) 
+            VALUES (%s, %s, %s)
+        """, (task_id, "updated", f"Updated: {', '.join(changes)}"))
+        
+        return updated_task
 
 @router.delete("/{task_id}")
-async def delete_task(task_id: int, user_id: int = Depends(get_current_user)):
+async def delete_task(task_id: int, current_user = Depends(get_current_user)):
+    """Supprimer une tâche"""
+    
     with get_db() as cursor:
-        cursor.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
+        # Vérifier que la tâche existe
+        cursor.execute(
+            "SELECT title FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, current_user["user_id"])
+        )
+        task = cursor.fetchone()
         
-        if cursor.rowcount == 0:
+        if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         
-        return {"message": "Task deleted"}
+        # Supprimer (cascade supprime les logs)
+        cursor.execute(
+            "DELETE FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, current_user["user_id"])
+        )
+        
+        return {"message": f"Task '{task['title']}' deleted successfully"}
+
+@router.get("/{task_id}/logs")
+async def get_task_logs(task_id: int, current_user = Depends(get_current_user)):
+    """Récupérer l'historique d'une tâche"""
+    
+    with get_db() as cursor:
+        # Vérifier que la tâche appartient à l'utilisateur
+        cursor.execute(
+            "SELECT id FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, current_user["user_id"])
+        )
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Récupérer logs
+        cursor.execute(
+            "SELECT * FROM task_logs WHERE task_id = %s ORDER BY timestamp DESC",
+            (task_id,)
+        )
+        logs = cursor.fetchall()
+        
+        return logs
+
+@router.get("/stats/summary")
+async def get_tasks_stats(current_user = Depends(get_current_user)):
+    """Statistiques des tâches"""
+    
+    with get_db() as cursor:
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'todo' THEN 1 END) as todo,
+                COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress,
+                COUNT(CASE WHEN status = 'done' THEN 1 END) as done,
+                COUNT(CASE WHEN status = 'blocked' THEN 1 END) as blocked,
+                COUNT(CASE WHEN status = 'standby' THEN 1 END) as standby,
+                COUNT(CASE WHEN priority = 'high' THEN 1 END) as high_priority,
+                COUNT(CASE WHEN priority = 'medium' THEN 1 END) as medium_priority,
+                COUNT(CASE WHEN priority = 'low' THEN 1 END) as low_priority
+            FROM tasks 
+            WHERE user_id = %s
+        """, (current_user["user_id"],))
+        
+        stats = cursor.fetchone()
+        return stats

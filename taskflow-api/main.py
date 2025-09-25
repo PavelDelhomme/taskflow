@@ -1,35 +1,54 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import init_db
-from routes import auth, tasks, reports, workflows
+import uvicorn
 
-# FastAPI app
-app = FastAPI(title="TaskFlow ADHD API", version="2.0.0")
+# Import des routes
+from auth import router as auth_router
+from tasks import router as tasks_router
 
-# CORS
+# 🚀 FASTAPI APP
+app = FastAPI(
+    title="TaskFlow ADHD API",
+    description="API pour gestion des tâches ADHD de Paul",
+    version="1.0.0"
+)
+
+# 🌐 CORS - Autoriser toutes les origines pour les tests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for multi-device
+    allow_origins=["*"],  # En prod: ["http://localhost:3003"]
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(auth.router)
-app.include_router(tasks.router)
-app.include_router(reports.router)
-app.include_router(workflows.router)
+# 🛣️ ROUTES
+app.include_router(auth_router)
+app.include_router(tasks_router)
+
+# 🏥 HEALTH CHECK
+@app.get("/")
+async def root():
+    return {
+        "message": "🎯 TaskFlow ADHD API - Paul Delhomme",
+        "version": "1.0.0",
+        "status": "✅ Running",
+        "routes": {
+            "auth": "/auth",
+            "tasks": "/tasks",
+            "docs": "/docs",
+            "health": "/health"
+        }
+    }
 
 @app.get("/health")
-async def health():
-    return {"status": "ok", "version": "2.0.0"}
+async def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": "2025-09-25T18:35:00",
+        "service": "taskflow-api"
+    }
 
-# Initialize on startup
-@app.on_event("startup")
-async def startup():
-    init_db()
-
+# 🚀 RUN
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

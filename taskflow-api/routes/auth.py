@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 import re
+import hashlib
+import base64
+import secrets
 
 from database import get_db
 
@@ -40,8 +43,28 @@ def hash_password(password: str) -> str:
     return bcrypt.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Vérifier password"""
-    return bcrypt.verify(plain_password, hashed_password)
+    """Vérifier password - Supporte bcrypt et SHA-256"""
+    # Si c'est un hash SHA-256 (format: sha256$salt$hash)
+    if hashed_password.startswith('sha256$'):
+        parts = hashed_password.split('$')
+        if len(parts) != 3:
+            return False
+        salt_part = parts[1]
+        hash_part = parts[2]
+        password_salt = plain_password + salt_part
+        calculated_hash = hashlib.sha256(password_salt.encode('utf-8')).hexdigest()
+        return calculated_hash == hash_part
+    
+    # Si c'est un hash bcrypt (commence par $2a$, $2b$, $2y$)
+    if hashed_password.startswith('$2'):
+        try:
+            return bcrypt.verify(plain_password, hashed_password)
+        except (ValueError, TypeError):
+            # Hash bcrypt malformé, essayer SHA-256 simple comme fallback
+            return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    
+    # Fallback pour ancien hash SHA-256 simple (sans salt)
+    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Créer JWT token"""

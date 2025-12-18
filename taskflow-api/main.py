@@ -3,20 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import des routes
-from auth import router as auth_router
-from tasks import router as tasks_router
+from routes.auth import router as auth_router
+from routes.tasks import router as tasks_router
+from routes.workflows import router as workflows_router
+from routes.reports import router as reports_router
 
 # 🚀 FASTAPI APP
 app = FastAPI(
     title="TaskFlow ADHD API",
     description="API pour gestion des tâches ADHD de Paul",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
 
 # 🌐 CORS - Autoriser toutes les origines pour les tests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En prod: ["http://localhost:3003"]
+    allow_origins=["*"],  # En prod: ["http://localhost:4000"]
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -25,6 +28,8 @@ app.add_middleware(
 # 🛣️ ROUTES
 app.include_router(auth_router)
 app.include_router(tasks_router)
+app.include_router(workflows_router)
+app.include_router(reports_router)
 
 # 🏥 HEALTH CHECK
 @app.get("/")
@@ -36,6 +41,8 @@ async def root():
         "routes": {
             "auth": "/auth",
             "tasks": "/tasks",
+            "workflows": "/workflows",
+            "reports": "/reports",
             "docs": "/docs",
             "health": "/health"
         }

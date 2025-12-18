@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     standby_at TIMESTAMP,
+    deleted_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS workflows (
     name VARCHAR(255) NOT NULL,
     steps TEXT NOT NULL,
     category VARCHAR(50) DEFAULT 'dev',
+    project VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
@@ -54,37 +56,27 @@ CREATE TABLE IF NOT EXISTS task_logs (
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
 );
 
--- 👤 UTILISATEUR PAUL - PASSWORD SIMPLE: 123456789
+-- 👤 UTILISATEUR PAUL - PASSWORD: 2H8'Z&sx@QW+X=v,dz[tnsv$F
 INSERT INTO users (username, email, password_hash, full_name) 
 VALUES (
     'paul',
     'paul@delhomme.ovh',
-    '$2b$12$LQv3c1yqBCFcXDHJCkNOSu.dVhTq7Z4Hk9TG3p8Lz9U2K5M6N7O8Q9',
+    'sha256$wj/is8YBswkdZ2i3LTK1O4oe2BtY2JEHtnX66asKvFo=$6a3505cdec52e053b98bac36d8f89b127b1d6a517c82561b3edae9e5852663a6',
     'Paul Delhomme'
 ) ON CONFLICT (username) DO UPDATE SET 
     password_hash = EXCLUDED.password_hash,
     email = EXCLUDED.email,
     full_name = EXCLUDED.full_name;
 
--- 🗂️ WORKFLOWS PAR DÉFAUT
-INSERT INTO workflows (user_id, name, steps, category) VALUES
-(1, 'Dev Basic', '1. Analyser le ticket\n2. Créer branche\n3. Développer\n4. Tester\n5. Pull Request', 'dev'),
-(1, 'Daily Workflow', '1. Check emails\n2. Daily 11h\n3. Update Trello\n4. TaskFlow sync', 'daily'),
-(1, 'Bug Fix', '1. Reproduire le bug\n2. Analyser la cause\n3. Fixer\n4. Tester\n5. Déployer', 'bugfix')
-ON CONFLICT DO NOTHING;
-
--- 📋 TÂCHES EXEMPLES
-INSERT INTO tasks (user_id, title, description, status, priority) VALUES
-(1, 'Setup API TaskFlow', 'Configuration complète API avec routes auth + tasks', 'in_progress', 'high'),
-(1, 'Test Postman', 'Créer collection Postman pour toutes les routes API', 'todo', 'medium'),
-(1, 'Doc API', 'Documenter toutes les routes avec Swagger/FastAPI', 'todo', 'low')
-ON CONFLICT DO NOTHING;
+-- 🗂️ WORKFLOWS PAR DÉFAUT (utiliser make test-data pour générer plus de données)
+-- Les données de test complètes sont dans generate-test-data.sql
 
 -- 📊 INDEX PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_workflows_user_id ON workflows(user_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_project ON workflows(project);
 
 -- ✅ BASE PRÊTE !
--- Login: paul@delhomme.ovh / 123456789
+-- Login: paul@delhomme.ovh / 2H8'Z&sx@QW+X=v,dz[tnsv$F

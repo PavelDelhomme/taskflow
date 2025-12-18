@@ -1,13 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     env: {
-      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008',
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001',
     },
     async rewrites() {
       return [
         {
           source: '/api/:path*',
-          destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008'}/api/:path*`,
+          destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'}/api/:path*`,
         },
       ];
     },
@@ -18,7 +18,7 @@ const nextConfig = {
           headers: [
             {
               key: 'X-TaskFlow-Ports',
-              value: 'Web:3003|API:8008|DB:5435',
+              value: 'Web:4000|API:4001|DB:4002',
             },
           ],
         },

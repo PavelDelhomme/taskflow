@@ -3,7 +3,7 @@ import psycopg2.extras
 import os
 from contextlib import contextmanager
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://taskflow:taskflow123@localhost:5435/taskflow_adhd")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://taskflow:taskflow123@localhost:4002/taskflow_adhd")
 
 @contextmanager
 def get_db():

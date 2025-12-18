@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from database import get_db
-from auth import get_current_user
+from routes.auth import get_current_user
 
 # Router
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -44,13 +44,15 @@ class TaskResponse(BaseModel):
 async def create_task(task_data: TaskCreate, current_user = Depends(get_current_user)):
     """Créer une nouvelle tâche"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         cursor.execute("""
             INSERT INTO tasks (user_id, title, description, priority, trello_id) 
             VALUES (%s, %s, %s, %s, %s)
             RETURNING *
         """, (
-            current_user["user_id"],
+            user_id,
             task_data.title,
             task_data.description,
             task_data.priority,
@@ -79,7 +81,11 @@ async def get_tasks(
     with get_db() as cursor:
         # Base query
         query = "SELECT * FROM tasks WHERE user_id = %s"
-        params = [current_user["user_id"]]
+        user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+        params = [user_id]
+        
+        # Exclure les tâches supprimées par défaut
+        query += " AND deleted_at IS NULL"
         
         # Filtres optionnels
         if status:
@@ -102,10 +108,12 @@ async def get_tasks(
 async def get_task(task_id: int, current_user = Depends(get_current_user)):
     """Récupérer une tâche spécifique"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         cursor.execute(
             "SELECT * FROM tasks WHERE id = %s AND user_id = %s",
-            (task_id, current_user["user_id"])
+            (task_id, user_id)
         )
         task = cursor.fetchone()
         
@@ -118,11 +126,13 @@ async def get_task(task_id: int, current_user = Depends(get_current_user)):
 async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depends(get_current_user)):
     """Mettre à jour une tâche"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         # Vérifier que la tâche existe
         cursor.execute(
             "SELECT * FROM tasks WHERE id = %s AND user_id = %s",
-            (task_id, current_user["user_id"])
+            (task_id, user_id)
         )
         existing_task = cursor.fetchone()
         
@@ -173,7 +183,7 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
         
         # Exécuter UPDATE
         query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s AND user_id = %s RETURNING *"
-        params.extend([task_id, current_user["user_id"]])
+        params.extend([task_id, user_id])
         
         cursor.execute(query, params)
         updated_task = cursor.fetchone()
@@ -191,34 +201,51 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
 async def delete_task(task_id: int, current_user = Depends(get_current_user)):
     """Supprimer une tâche"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         # Vérifier que la tâche existe
         cursor.execute(
             "SELECT title FROM tasks WHERE id = %s AND user_id = %s",
-            (task_id, current_user["user_id"])
+            (task_id, user_id)
         )
         task = cursor.fetchone()
         
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         
-        # Supprimer (cascade supprime les logs)
+        # Soft delete - marquer comme supprimé
         cursor.execute(
-            "DELETE FROM tasks WHERE id = %s AND user_id = %s",
-            (task_id, current_user["user_id"])
+            "UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s",
+            (task_id, user_id)
         )
         
         return {"message": f"Task '{task['title']}' deleted successfully"}
+
+@router.post("/{task_id}/restore")
+async def restore_task(task_id: int, current_user = Depends(get_current_user)):
+    """Restaurer une tâche supprimée"""
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
+    with get_db() as cursor:
+        cursor.execute(
+            "UPDATE tasks SET deleted_at = NULL WHERE id = %s AND user_id = %s",
+            (task_id, user_id)
+        )
+        
+        return {"message": "Task restored successfully"}
 
 @router.get("/{task_id}/logs")
 async def get_task_logs(task_id: int, current_user = Depends(get_current_user)):
     """Récupérer l'historique d'une tâche"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         # Vérifier que la tâche appartient à l'utilisateur
         cursor.execute(
             "SELECT id FROM tasks WHERE id = %s AND user_id = %s",
-            (task_id, current_user["user_id"])
+            (task_id, user_id)
         )
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Task not found")
@@ -236,6 +263,8 @@ async def get_task_logs(task_id: int, current_user = Depends(get_current_user)):
 async def get_tasks_stats(current_user = Depends(get_current_user)):
     """Statistiques des tâches"""
     
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
     with get_db() as cursor:
         cursor.execute("""
             SELECT 
@@ -249,8 +278,8 @@ async def get_tasks_stats(current_user = Depends(get_current_user)):
                 COUNT(CASE WHEN priority = 'medium' THEN 1 END) as medium_priority,
                 COUNT(CASE WHEN priority = 'low' THEN 1 END) as low_priority
             FROM tasks 
-            WHERE user_id = %s
-        """, (current_user["user_id"],))
+            WHERE user_id = %s AND deleted_at IS NULL
+        """, (user_id,))
         
         stats = cursor.fetchone()
         return stats

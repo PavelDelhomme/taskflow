@@ -64,24 +64,27 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [x] Notes attachées aux tâches
   - [x] Recherche dans les notes
 
-- [ ] **Système de statistiques motivantes**
-  - [ ] Dashboard avec statistiques visuelles
-  - [ ] Graphiques de progression
-  - [ ] Comparaison avec semaines précédentes
-  - [ ] Messages positifs
-  - [ ] Visualisation des "meilleures journées"
+- [x] **Système de statistiques motivantes** ✅ (API)
+  - [x] Dashboard avec statistiques visuelles
+  - [x] Graphiques de progression
+  - [x] Comparaison avec semaines précédentes
+  - [x] Messages positifs
+  - [x] Visualisation des "meilleures journées"
+  - [ ] Frontend à implémenter
 
-- [ ] **Système de pauses structurées**
-  - [ ] Rappels de pause automatiques
-  - [ ] Suggestions d'activités de pause
-  - [ ] Timer de pause avec alerte de reprise
-  - [ ] Statistiques de pauses prises
+- [x] **Système de pauses structurées** ✅ (API)
+  - [x] Rappels de pause automatiques
+  - [x] Suggestions d'activités de pause
+  - [x] Timer de pause avec alerte de reprise
+  - [x] Statistiques de pauses prises
+  - [ ] Frontend à implémenter
 
-- [ ] **Mode energy level tracking**
-  - [ ] Enregistrement du niveau d'énergie (1-5)
-  - [ ] Suggestions de tâches selon l'énergie
-  - [ ] Graphiques montrant les patterns d'énergie
-  - [ ] Planification intelligente
+- [x] **Mode energy level tracking** ✅ (API)
+  - [x] Enregistrement du niveau d'énergie (1-5)
+  - [x] Suggestions de tâches selon l'énergie
+  - [x] Graphiques montrant les patterns d'énergie
+  - [ ] Planification intelligente (Frontend)
+  - [ ] Frontend à implémenter
 
 ### 🟢 Priorité Basse
 
@@ -101,35 +104,63 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 ## 📈 Progression Globale
 
 **Total des fonctionnalités :** 14  
+**API Terminées :** 7  
+**Frontend Terminées :** 0  
 **En cours :** 1  
-**Terminées :** 4  
-**Progression :** 28.5%
+**Progression API :** 50%  
+**Progression Frontend :** 0%  
+**Progression Globale :** 25%
 
 ---
 
 ## 📝 Notes d'Implémentation
 
-### Phase 1 : Fondations (En cours)
-- Base de données : migrations pour nouvelles tables
-- API : endpoints pour nouvelles fonctionnalités
-- Frontend : composants de base
+### Phase 1 : Fondations ✅ TERMINÉE
+- ✅ Base de données : migrations pour nouvelles tables
+- ✅ API : endpoints pour nouvelles fonctionnalités
+- ⏳ Frontend : composants de base (À FAIRE)
 
-### Phase 2 : Fonctionnalités Core
-- Time Awareness
-- Templates
-- Breakdown automatique
-- Rappels contextuels
+### Phase 2 : Fonctionnalités Core (En cours)
+- ✅ Time Awareness (API - champ estimated_time_minutes ajouté)
+- ✅ Templates (API complète)
+- ✅ Breakdown automatique (API complète)
+- ⏳ Rappels contextuels (À FAIRE)
 
-### Phase 3 : Fonctionnalités Avancées
-- Body Doubling
-- Tags et filtres
-- Statistiques
-- Notes et Brain Dump
+### Phase 3 : Fonctionnalités Avancées (En cours)
+- ⏳ Body Doubling (À FAIRE - nécessite WebSockets)
+- ✅ Tags et filtres (API complète)
+- ✅ Statistiques (API complète)
+- ✅ Notes et Brain Dump (API complète)
+- ✅ Pauses structurées (API complète)
+- ✅ Energy tracking (API complète)
 
-### Phase 4 : IA/ML et Optimisations
-- Intégration IA
-- Optimisations UX/UI
-- Accessibilité
+### Phase 4 : IA/ML et Optimisations (À FAIRE)
+- ⏳ Intégration IA
+- ⏳ Optimisations UX/UI
+- ⏳ Accessibilité
+
+## 🎯 Prochaines Étapes
+
+### Priorité 1 : Frontend Core
+1. **Time Awareness** - Ajouter champ estimation dans formulaires + graphiques
+2. **Templates** - Interface de création/utilisation de templates
+3. **Breakdown automatique** - UI pour décomposer les tâches
+4. **Tags** - Interface de gestion des tags et filtres
+5. **Notes/Brain Dump** - Zone de notes avec conversion en tâches
+
+### Priorité 2 : Frontend Avancé
+6. **Statistiques** - Dashboard avec graphiques
+7. **Pauses** - Timer de pause avec notifications
+8. **Energy Tracking** - Interface d'enregistrement et graphiques
+
+### Priorité 3 : Fonctionnalités Complexes
+9. **Rappels contextuels** - Système de rappels intelligents
+10. **Visualisation temporelle** - Timeline/Gantt
+11. **Commandes vocales** - Intégration Web Speech API
+12. **Body Doubling** - WebSockets + interface collaborative
+
+### Priorité 4 : IA/ML
+13. **IA/ML** - Prédictions et suggestions intelligentes
 
 ---
 

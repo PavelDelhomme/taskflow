@@ -2087,7 +2087,9 @@ export default function TaskflowPage() {
                     priority: selectedTask.priority,
                     blocked_reason: selectedTask.blocked_reason,
                     trello_id: selectedTask.trello_id,
-                    due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString() : null
+                    due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString() : null,
+                    project: selectedTask.project || null,
+                    estimated_time_minutes: selectedTask.estimated_time_minutes || null
                   })
                 }}
                 disabled={!selectedTask.title}

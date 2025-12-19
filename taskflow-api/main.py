@@ -11,6 +11,9 @@ from routes.templates import router as templates_router
 from routes.subtasks import router as subtasks_router
 from routes.tags import router as tags_router
 from routes.notes import router as notes_router
+from routes.stats import router as stats_router
+from routes.energy import router as energy_router
+from routes.breaks import router as breaks_router
 
 # 🚀 FASTAPI APP
 app = FastAPI(
@@ -38,6 +41,9 @@ app.include_router(templates_router)
 app.include_router(subtasks_router)
 app.include_router(tags_router)
 app.include_router(notes_router)
+app.include_router(stats_router)
+app.include_router(energy_router)
+app.include_router(breaks_router)
 
 # 🏥 HEALTH CHECK
 @app.get("/")

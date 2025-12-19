@@ -296,7 +296,7 @@ export default function TaskflowPage() {
         clearInterval(interval)
       }
       if (document.head && document.head.contains(style)) {
-        document.head.removeChild(style)
+      document.head.removeChild(style)
       }
     }
   }, [])
@@ -444,7 +444,7 @@ export default function TaskflowPage() {
   }
 
   const sendNotification = (title: string, body: string, options?: NotificationOptions) => {
-    if (notificationsEnabled && 'Notification' in window) {
+    if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(title, {
         body,
         icon: '/favicon.ico',
@@ -915,6 +915,8 @@ export default function TaskflowPage() {
         setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '', estimated_time_minutes: null })
         setShowCreateModal(false)
         fetchTasks(token)
+        showActionFeedback('✅ Tâche créée avec succès', 'success')
+        playSuccessSound()
         sendNotification('✅ Tâche créée', `"${newTask.title}" a été ajoutée`)
       }
     } catch (error) {
@@ -1333,11 +1335,11 @@ export default function TaskflowPage() {
                 <span className="navbar-logo">🎯</span>
                 <span className="navbar-title">TaskFlow ADHD</span>
                 <span className="navbar-user">{user?.full_name}</span>
-              </div>
+                </div>
               <div className="navbar-actions">
                 <div className="navbar-actions-desktop">
                   {recognition && (
-                    <button
+                  <button
                       className="btn-nav btn-nav-secondary"
                       onClick={() => {
                         if (recognition) {
@@ -1349,7 +1351,7 @@ export default function TaskflowPage() {
                     >
                       <span>🎤</span>
                       <span className="btn-label">Voix</span>
-                    </button>
+                  </button>
                   )}
                   <button 
                     className="btn-nav btn-nav-primary" 
@@ -1358,15 +1360,15 @@ export default function TaskflowPage() {
                   >
                     <span>➕</span>
                     <span className="btn-label">Tâche</span>
-                  </button>
+                </button>
                   <button 
                     className="btn-nav btn-nav-success" 
                     onClick={fetchDailySummary}
                   >
                     <span>📋</span>
                     <span className="btn-label">Daily</span>
-                  </button>
-                  <button 
+                </button>
+                  <button
                     className="btn-nav btn-nav-info" 
                     onClick={fetchWeeklySummary}
                   >
@@ -1379,15 +1381,15 @@ export default function TaskflowPage() {
                   >
                     <span>📋</span>
                     <span className="btn-label">Workflows</span>
-                  </button>
+                </button>
                   <button 
                     className="btn-nav btn-nav-info" 
                     onClick={() => setShowCalendarModal(true)}
                   >
                     <span>📅</span>
                     <span className="btn-label">Calendrier</span>
-                  </button>
-                  <button 
+                </button>
+            <button 
                     className="btn-nav btn-nav-secondary" 
                     onClick={() => {
                       fetchDeletedTasks()
@@ -1396,8 +1398,8 @@ export default function TaskflowPage() {
                   >
                     <span>🗑️</span>
                     <span className="btn-label">Corbeille</span>
-                  </button>
-                  <button 
+            </button>
+            <button 
                     className="btn-nav btn-nav-info" 
                     onClick={() => {
                       fetchTimeComparisonStats()
@@ -1407,8 +1409,8 @@ export default function TaskflowPage() {
                   >
                     <span>⏱️</span>
                     <span className="btn-label">Time</span>
-                  </button>
-                  <button 
+            </button>
+            <button 
                     className="btn-nav btn-nav-success" 
                     onClick={() => {
                       fetchTemplates()
@@ -1418,8 +1420,8 @@ export default function TaskflowPage() {
                   >
                     <span>📄</span>
                     <span className="btn-label">Templates</span>
-                  </button>
-                  <button 
+            </button>
+            <button 
                     className="btn-nav btn-nav-warning" 
                     onClick={() => {
                       fetchTags()
@@ -1429,8 +1431,8 @@ export default function TaskflowPage() {
                   >
                     <span>🏷️</span>
                     <span className="btn-label">Tags</span>
-                  </button>
-                  <button 
+            </button>
+            <button 
                     className="btn-nav btn-nav-info" 
                     onClick={() => {
                       fetchNotes()
@@ -1440,8 +1442,8 @@ export default function TaskflowPage() {
                   >
                     <span>📝</span>
                     <span className="btn-label">Notes</span>
-                  </button>
-                  <button 
+            </button>
+            <button 
                     className="btn-nav btn-nav-primary" 
                     onClick={() => {
                       fetchDashboardStats()
@@ -1451,7 +1453,7 @@ export default function TaskflowPage() {
                   >
                     <span>📊</span>
                     <span className="btn-label">Stats</span>
-                  </button>
+            </button>
                   <button 
                     className="btn-nav btn-nav-secondary" 
                     onClick={() => {
@@ -1492,7 +1494,7 @@ export default function TaskflowPage() {
                   >
                     <span>📅</span>
                     <span className="btn-label">Timeline</span>
-                  </button>
+            </button>
                 </div>
                 <div className="navbar-user-menu">
                   <button 
@@ -1542,9 +1544,9 @@ export default function TaskflowPage() {
                     </>
                   )}
                 </div>
-              </div>
-            </div>
-          </nav>
+          </div>
+        </div>
+      </nav>
 
       {tasks.filter(t => t.status === 'in_progress').length === 0 && tasks.length > 0 && (
         <div className="taskflow-alert taskflow-alert-warning">
@@ -1554,13 +1556,13 @@ export default function TaskflowPage() {
               <strong>Aucune tâche active !</strong> 
               <span>Pense à prendre un nouveau ticket sur Trello → Tests-Auto ou MEP Tech/Backlog/Sprint.</span>
             </div>
-          </div>
-          <button 
+            </div>
+            <button 
             className="btn-alert"
-            onClick={() => setShowReminderModal(true)}
-          >
-            Détails
-          </button>
+              onClick={() => setShowReminderModal(true)}
+            >
+              Détails
+            </button>
         </div>
       )}
 
@@ -1595,7 +1597,7 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
-                    {task.description && (
+                      {task.description && (
                       <p className="task-description">{task.description}</p>
                     )}
                     {(() => {
@@ -1616,16 +1618,16 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                        {getStatusBadge(task.status)}
+                        {getPriorityBadge(task.priority)}
+                      </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
                       </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-                      {getTaskActions(task)}
+                        {getTaskActions(task)}
                     </div>
                   </div>
                 ))}
@@ -1711,16 +1713,16 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                        {getStatusBadge(task.status)}
+                        {getPriorityBadge(task.priority)}
+                      </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
                       </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-                      {getTaskActions(task)}
+                        {getTaskActions(task)}
                     </div>
                   </div>
                 ))}
@@ -1749,7 +1751,7 @@ export default function TaskflowPage() {
                 {tasks.filter(t => t.status === 'todo').length === 0 && (
                   <div className="taskflow-empty">
                     <span>Aucune tâche à faire</span>
-                  </div>
+              </div>
                 )}
               </div>
               )}
@@ -1806,16 +1808,16 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                        {getStatusBadge(task.status)}
+                        {getPriorityBadge(task.priority)}
+                      </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
                       </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-                      {getTaskActions(task)}
+                        {getTaskActions(task)}
                     </div>
                   </div>
                 ))}
@@ -1828,7 +1830,7 @@ export default function TaskflowPage() {
                     }}
                   >
                     ... et {tasks.filter(t => t.status === 'standby').length - 3} autres
-                  </div>
+              </div>
                 )}
                 {tasks.filter(t => t.status === 'standby').length > 3 && showAllTasks.standby && (
                   <button 
@@ -1882,12 +1884,12 @@ export default function TaskflowPage() {
                     </div>
                     {task.description && (
                       <p className="task-description">{task.description}</p>
-                    )}
-                    {task.blocked_reason && (
+                      )}
+                      {task.blocked_reason && (
                       <div className="task-blocked-reason">
-                        <strong>Blocage:</strong> {task.blocked_reason}
-                      </div>
-                    )}
+                          <strong>Blocage:</strong> {task.blocked_reason}
+                        </div>
+                      )}
                     {(() => {
                       const dateInfo = getTaskDateInfo(task)
                       if (dateInfo && dateInfo.date) {
@@ -1906,16 +1908,16 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                        {getStatusBadge(task.status)}
+                        {getPriorityBadge(task.priority)}
+                      </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
                       </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-                      {getTaskActions(task)}
+                        {getTaskActions(task)}
                     </div>
                   </div>
                 ))}
@@ -1928,7 +1930,7 @@ export default function TaskflowPage() {
                     }}
                   >
                     ... et {tasks.filter(t => t.status === 'blocked').length - 3} autres
-                  </div>
+              </div>
                 )}
                 {tasks.filter(t => t.status === 'blocked').length > 3 && showAllTasks.blocked && (
                   <button 
@@ -1962,7 +1964,7 @@ export default function TaskflowPage() {
                 <span className="card-icon">⏳</span>
                 <h3 className="card-title">En Review</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'review').length}</span>
-              </div>
+                  </div>
               {columnStates.review && (
                 <div className="taskflow-card-body">
                 {(showAllTasks.review 
@@ -1976,7 +1978,7 @@ export default function TaskflowPage() {
                   }}>
                     <div className="task-header">
                       <h4 className="task-title">{task.title}</h4>
-                      {task.trello_id && (
+                          {task.trello_id && (
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
@@ -2001,19 +2003,19 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                            {getStatusBadge(task.status)}
+                            {getPriorityBadge(task.priority)}
+                          </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
                       </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-                      {getTaskActions(task)}
-                    </div>
-                  </div>
-                ))}
+                            {getTaskActions(task)}
+                        </div>
+                      </div>
+                    ))}
                 {tasks.filter(t => t.status === 'review').length > 3 && !showAllTasks.review && (
                   <div 
                     className="taskflow-more taskflow-more-clickable"
@@ -2043,8 +2045,8 @@ export default function TaskflowPage() {
                 )}
               </div>
               )}
-            </div>
-          </div>
+                </div>
+              </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-success">
@@ -2057,7 +2059,7 @@ export default function TaskflowPage() {
                 <span className="card-icon">✅</span>
                 <h3 className="card-title">Terminé</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'done').length}</span>
-              </div>
+                  </div>
               {columnStates.done && (
                 <div className="taskflow-card-body">
                 {(showAllTasks.done 
@@ -2071,7 +2073,7 @@ export default function TaskflowPage() {
                   }}>
                     <div className="task-header">
                       <h4 className="task-title">{task.title}</h4>
-                      {task.trello_id && (
+                          {task.trello_id && (
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
@@ -2096,19 +2098,19 @@ export default function TaskflowPage() {
                       return null
                     })()}
                     <div className="task-badges">
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
+                              {getStatusBadge(task.status)}
+                              {getPriorityBadge(task.priority)}
+                            </div>
                     {subtasks[task.id] && subtasks[task.id].length > 0 && (
                       <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
                         <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
-                      </div>
+                          </div>
                     )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
-                    </div>
-                  </div>
-                ))}
+                        </div>
+                      </div>
+                    ))}
                 {tasks.filter(t => t.status === 'done').length > 3 && !showAllTasks.done && (
                   <div 
                     className="taskflow-more taskflow-more-clickable"
@@ -2136,12 +2138,12 @@ export default function TaskflowPage() {
                     <span>Aucune tâche terminée</span>
                   </div>
                 )}
-              </div>
+                </div>
               )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* FAB - Floating Action Button */}
       <div className={`fab-container ${fabOpen ? 'open' : ''}`}>
@@ -2213,51 +2215,51 @@ export default function TaskflowPage() {
             <div className="taskflow-modal-header">
               <h3 className="modal-title">➕ Nouvelle tâche</h3>
               <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
-            </div>
+              </div>
             <div className="taskflow-modal-body">
               <div className="form-group-modern">
                 <label className="form-label-modern">Titre *</label>
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   className="form-input-modern"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                  placeholder="Ex: Implémenter API Platform"
-                />
-              </div>
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                    placeholder="Ex: Implémenter API Platform"
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Description</label>
-                <textarea
+                  <textarea
                   className="form-input-modern"
-                  rows={3}
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                  placeholder="Détails de la tâche..."
-                />
-              </div>
+                    rows={3}
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                    placeholder="Détails de la tâche..."
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">ID Ticket Trello (optionnel)</label>
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   className="form-input-modern"
-                  value={newTask.trello_id}
-                  onChange={(e) => setNewTask({...newTask, trello_id: e.target.value})}
-                  placeholder="Ex: abc123def456"
-                />
-              </div>
+                    value={newTask.trello_id}
+                    onChange={(e) => setNewTask({...newTask, trello_id: e.target.value})}
+                    placeholder="Ex: abc123def456"
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Priorité</label>
-                <select
+                  <select
                   className="form-input-modern"
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                >
-                  <option value="low">Basse</option>
-                  <option value="medium">Moyenne</option>
-                  <option value="high">Haute</option>
-                  <option value="urgent">Urgente</option>
-                </select>
-              </div>
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                  >
+                    <option value="low">Basse</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
               <div className="form-group-modern" style={{ position: 'relative' }}>
                 <label className="form-label-modern">Projet (optionnel)</label>
                 <input
@@ -2313,7 +2315,7 @@ export default function TaskflowPage() {
                         }}
                       >
                         {project}
-                      </div>
+              </div>
                     ))}
                   </div>
                 )}
@@ -2348,11 +2350,11 @@ export default function TaskflowPage() {
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowCreateModal(false)}>
-                Annuler
-              </button>
+                  Annuler
+                </button>
               <button className="btn-auth-primary" onClick={createTask} disabled={!newTask.title}>
-                Créer
-              </button>
+                  Créer
+                </button>
             </div>
           </div>
         </div>
@@ -2365,24 +2367,24 @@ export default function TaskflowPage() {
             <div className="taskflow-modal-header">
               <h3 className="modal-title">📋 Daily Summary</h3>
               <button className="modal-close" onClick={() => setShowDailyModal(false)}>×</button>
-            </div>
+              </div>
             <div className="taskflow-modal-body">
-              <textarea
+                <textarea
                 className="form-input-modern"
-                rows={20}
-                value={dailySummary}
-                onChange={(e) => setDailySummary(e.target.value)}
+                  rows={20}
+                  value={dailySummary}
+                  onChange={(e) => setDailySummary(e.target.value)}
                 style={{fontFamily: 'monospace', minHeight: '400px'}}
                 placeholder="Le résumé quotidien apparaîtra ici..."
-              />
-            </div>
+                />
+              </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-success" onClick={() => copyToClipboard(dailySummary)}>
-                📋 Copier
-              </button>
+                  📋 Copier
+                </button>
               <button className="btn-auth-secondary" onClick={() => setShowDailyModal(false)}>
-                Fermer
-              </button>
+                  Fermer
+                </button>
             </div>
           </div>
         </div>
@@ -2395,66 +2397,66 @@ export default function TaskflowPage() {
             <div className="taskflow-modal-header">
               <h3 className="modal-title">✏️ Modifier la tâche</h3>
               <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
-            </div>
+              </div>
             <div className="taskflow-modal-body">
               <div className="form-group-modern">
                 <label className="form-label-modern">Titre *</label>
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   className="form-input-modern"
-                  value={selectedTask.title}
-                  onChange={(e) => setSelectedTask({...selectedTask, title: e.target.value})}
-                  placeholder="Titre de la tâche"
-                />
-              </div>
+                    value={selectedTask.title}
+                    onChange={(e) => setSelectedTask({...selectedTask, title: e.target.value})}
+                    placeholder="Titre de la tâche"
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Description</label>
-                <textarea
+                  <textarea
                   className="form-input-modern"
-                  rows={3}
-                  value={selectedTask.description || ''}
-                  onChange={(e) => setSelectedTask({...selectedTask, description: e.target.value})}
-                  placeholder="Description détaillée..."
-                />
-              </div>
+                    rows={3}
+                    value={selectedTask.description || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, description: e.target.value})}
+                    placeholder="Description détaillée..."
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">ID Ticket Trello</label>
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   className="form-input-modern"
-                  value={selectedTask.trello_id || ''}
-                  onChange={(e) => setSelectedTask({...selectedTask, trello_id: e.target.value})}
-                  placeholder="Ex: abc123def456"
-                />
-              </div>
+                    value={selectedTask.trello_id || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, trello_id: e.target.value})}
+                    placeholder="Ex: abc123def456"
+                  />
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Statut</label>
-                <select
+                  <select
                   className="form-input-modern"
-                  value={selectedTask.status}
-                  onChange={(e) => setSelectedTask({...selectedTask, status: e.target.value})}
-                >
-                  <option value="todo">À faire</option>
-                  <option value="in_progress">En cours</option>
-                  <option value="blocked">Bloqué</option>
-                  <option value="standby">Standby</option>
-                  <option value="review">Review</option>
-                  <option value="done">Terminé</option>
-                </select>
-              </div>
+                    value={selectedTask.status}
+                    onChange={(e) => setSelectedTask({...selectedTask, status: e.target.value})}
+                  >
+                    <option value="todo">À faire</option>
+                    <option value="in_progress">En cours</option>
+                    <option value="blocked">Bloqué</option>
+                    <option value="standby">Standby</option>
+                    <option value="review">Review</option>
+                    <option value="done">Terminé</option>
+                  </select>
+                </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Priorité</label>
-                <select
+                  <select
                   className="form-input-modern"
-                  value={selectedTask.priority}
-                  onChange={(e) => setSelectedTask({...selectedTask, priority: e.target.value})}
-                >
-                  <option value="low">Basse</option>
-                  <option value="medium">Moyenne</option>
-                  <option value="high">Haute</option>
-                  <option value="urgent">Urgente</option>
-                </select>
-              </div>
+                    value={selectedTask.priority}
+                    onChange={(e) => setSelectedTask({...selectedTask, priority: e.target.value})}
+                  >
+                    <option value="low">Basse</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="high">Haute</option>
+                    <option value="urgent">Urgente</option>
+                  </select>
+                </div>
               <div className="form-group-modern" style={{ position: 'relative' }}>
                 <label className="form-label-modern">Projet (optionnel)</label>
                 <input
@@ -2541,42 +2543,42 @@ export default function TaskflowPage() {
                 </div>
                 <small className="form-hint">Estimez le temps nécessaire pour compléter cette tâche</small>
               </div>
-              {selectedTask.status === 'blocked' && (
+                {selectedTask.status === 'blocked' && (
                 <div className="form-group-modern">
                   <label className="form-label-modern">Raison du blocage</label>
-                  <textarea
+                    <textarea
                     className="form-input-modern"
-                    rows={2}
-                    value={selectedTask.blocked_reason || ''}
-                    onChange={(e) => setSelectedTask({...selectedTask, blocked_reason: e.target.value})}
-                    placeholder="Expliquez le blocage..."
-                  />
-                </div>
-              )}
-            </div>
+                      rows={2}
+                      value={selectedTask.blocked_reason || ''}
+                      onChange={(e) => setSelectedTask({...selectedTask, blocked_reason: e.target.value})}
+                      placeholder="Expliquez le blocage..."
+                    />
+                  </div>
+                )}
+              </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowEditModal(false)}>
-                Annuler
-              </button>
-              <button 
+                  Annuler
+                </button>
+                <button 
                 className="btn-auth-primary" 
-                onClick={() => {
-                  updateTask(selectedTask.id, {
-                    title: selectedTask.title,
-                    description: selectedTask.description,
-                    status: selectedTask.status,
-                    priority: selectedTask.priority,
-                    blocked_reason: selectedTask.blocked_reason,
+                  onClick={() => {
+                    updateTask(selectedTask.id, {
+                      title: selectedTask.title,
+                      description: selectedTask.description,
+                      status: selectedTask.status,
+                      priority: selectedTask.priority,
+                      blocked_reason: selectedTask.blocked_reason,
                     trello_id: selectedTask.trello_id,
                     due_date: selectedTask.due_date ? new Date(selectedTask.due_date).toISOString() : null,
                     project: selectedTask.project || null,
                     estimated_time_minutes: selectedTask.estimated_time_minutes || null
-                  })
-                }}
-                disabled={!selectedTask.title}
-              >
-                Sauvegarder
-              </button>
+                    })
+                  }}
+                  disabled={!selectedTask.title}
+                >
+                  Sauvegarder
+                </button>
             </div>
           </div>
         </div>
@@ -2589,27 +2591,27 @@ export default function TaskflowPage() {
             <div className="taskflow-modal-header">
               <h3 className="modal-title">📊 Weekly Summary</h3>
               <button className="modal-close" onClick={() => setShowWeeklyModal(false)}>×</button>
-            </div>
+              </div>
             <div className="taskflow-modal-body">
-              <textarea
+                <textarea
                 className="form-input-modern"
-                rows={20}
-                value={weeklySummary}
-                onChange={(e) => setWeeklySummary(e.target.value)}
+                  rows={20}
+                  value={weeklySummary}
+                  onChange={(e) => setWeeklySummary(e.target.value)}
                 style={{fontFamily: 'monospace', minHeight: '400px'}}
                 placeholder="Le résumé hebdomadaire apparaîtra ici..."
-              />
-            </div>
+                />
+              </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-success" onClick={() => copyToClipboard(weeklySummary)}>
-                📋 Copier
-              </button>
+                  📋 Copier
+                </button>
               <button className="btn-auth-secondary" onClick={() => setShowWeeklyModal(false)}>
-                Fermer
-              </button>
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* Modal Workflows */}
@@ -2619,7 +2621,7 @@ export default function TaskflowPage() {
             <div className="taskflow-modal-header">
               <h3 className="modal-title">📋 Workflows</h3>
               <button className="modal-close" onClick={() => setShowWorkflowModal(false)}>×</button>
-            </div>
+        </div>
             <div className="taskflow-modal-body">
               <button 
                 className="btn-auth-primary"
@@ -3028,9 +3030,9 @@ export default function TaskflowPage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )
-                }
+    </div>
+  )
+}
                 return null
               })()}
 

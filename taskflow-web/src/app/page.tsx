@@ -82,7 +82,8 @@ export default function TaskflowPage() {
     title: '',
     description: '',
     priority: 'medium',
-    trello_id: ''
+    trello_id: '',
+    due_date: ''
   })
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
@@ -415,17 +416,22 @@ export default function TaskflowPage() {
 
   const createTask = async () => {
     try {
+      const taskData = {
+        ...newTask,
+        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null
+      }
+      
       const response = await fetch(`${API_URL}/tasks/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(newTask)
+        body: JSON.stringify(taskData)
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '' })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '' })
         setShowCreateModal(false)
         fetchTasks(token)
         sendNotification('✅ Tâche créée', `"${newTask.title}" a été ajoutée`)
@@ -905,6 +911,17 @@ export default function TaskflowPage() {
                     </div>
                     {task.description && (
                       <p className="task-description">{task.description}</p>
+                    )}
+                    {task.due_date && (
+                      <div className="task-due-date">
+                        📅 À faire: {new Date(task.due_date).toLocaleString('fr-FR', { 
+                          day: 'numeric', 
+                          month: 'short', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
                     )}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
@@ -1523,6 +1540,16 @@ export default function TaskflowPage() {
                   <option value="high">Haute</option>
                   <option value="urgent">Urgente</option>
                 </select>
+              </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Date à faire (optionnel)</label>
+                <input
+                  type="datetime-local"
+                  className="form-input-modern"
+                  value={selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => setSelectedTask({...selectedTask, due_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                />
+                <small className="form-hint">Vous pouvez définir une date et heure précise pour cette tâche</small>
               </div>
               {selectedTask.status === 'blocked' && (
                 <div className="form-group-modern">

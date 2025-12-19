@@ -19,6 +19,7 @@ export interface Task {
   started_at?: string
   completed_at?: string
   standby_at?: string
+  due_date?: string
 }
 
 export interface Workflow {

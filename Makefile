@@ -74,6 +74,7 @@ migrate:
 	@echo "🔄 Application des migrations..."
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_deleted_at.sql
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_workflows.sql
+	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_due_date.sql
 	@echo "✅ Migrations appliquées !"
 
 clean-cache:

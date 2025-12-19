@@ -15,6 +15,7 @@ class TaskCreate(BaseModel):
     description: Optional[str] = None
     priority: str = "medium"  # low, medium, high
     trello_id: Optional[str] = None
+    due_date: Optional[datetime] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -23,6 +24,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     blocked_reason: Optional[str] = None
     trello_id: Optional[str] = None
+    due_date: Optional[datetime] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -37,6 +39,7 @@ class TaskResponse(BaseModel):
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     standby_at: Optional[datetime]
+    due_date: Optional[datetime]
 
 # 📋 ROUTES TASKS
 
@@ -48,15 +51,16 @@ async def create_task(task_data: TaskCreate, current_user = Depends(get_current_
     
     with get_db() as cursor:
         cursor.execute("""
-            INSERT INTO tasks (user_id, title, description, priority, trello_id) 
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO tasks (user_id, title, description, priority, trello_id, due_date) 
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
         """, (
             user_id,
             task_data.title,
             task_data.description,
             task_data.priority,
-            task_data.trello_id
+            task_data.trello_id,
+            task_data.due_date
         ))
         
         new_task = cursor.fetchone()
@@ -96,7 +100,20 @@ async def get_tasks(
             query += " AND priority = %s"
             params.append(priority)
             
-        query += " ORDER BY created_at DESC LIMIT %s"
+        # Tri par due_date (tâches avec date à faire en premier, puis par date croissante)
+        # Puis par priorité, puis par date de création
+        query += """ ORDER BY 
+            CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
+            due_date ASC NULLS LAST,
+            CASE priority 
+                WHEN 'urgent' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'medium' THEN 3 
+                WHEN 'low' THEN 4 
+                ELSE 5 
+            END,
+            created_at DESC 
+            LIMIT %s"""
         params.append(limit)
         
         cursor.execute(query, params)
@@ -174,6 +191,10 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
         if task_data.trello_id is not None:
             update_fields.append("trello_id = %s")
             params.append(task_data.trello_id)
+            
+        if task_data.due_date is not None:
+            update_fields.append("due_date = %s")
+            params.append(task_data.due_date)
         
         # Toujours mettre à jour updated_at
         update_fields.append("updated_at = CURRENT_TIMESTAMP")

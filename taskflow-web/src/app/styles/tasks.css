@@ -119,6 +119,21 @@
   line-height: 1.5;
 }
 
+.task-due-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  margin-bottom: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.1);
+  border-radius: var(--radius-base);
+  border-left: 3px solid var(--color-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.taskflow-app.dark-mode .task-due-date {
+  background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.2);
+}
+
 .task-blocked-reason {
   padding: var(--space-12);
   background: rgba(var(--color-error-rgb, 192, 21, 47), 0.1);

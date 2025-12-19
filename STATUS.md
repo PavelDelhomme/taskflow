@@ -13,24 +13,24 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Option "Snooze" intelligente
   - [ ] Rappels pour tâches bloquées depuis X jours
 
-- [x] **Breakdown automatique des tâches** ✅ (API)
-  - [x] Bouton "Décomposer" sur une tâche
-  - [x] Génération automatique de sous-tâches
-  - [ ] Affichage en arborescence (Frontend)
-  - [ ] Progression visuelle (X/Y sous-tâches terminées) (Frontend)
+- [x] **Breakdown automatique des tâches** ✅
+  - [x] Bouton "Décomposer" sur une tâche (Frontend)
+  - [x] Génération automatique de sous-tâches (API + Frontend)
+  - [x] Affichage des sous-tâches dans les cartes et modal de détails (Frontend)
+  - [x] Progression visuelle (X/Y sous-tâches terminées) (Frontend)
 
 - [x] **Estimation vs Réalité (Time Awareness)** ✅
   - [x] Champ estimation de temps lors de la création (API + Frontend)
   - [x] Comparaison avec temps réellement passé (Frontend)
-  - [ ] Graphiques montrant l'écart estimation/réalité (À faire - composant graphique)
-  - [ ] Apprentissage progressif (À faire - statistiques globales)
-  - [ ] Suggestions d'estimations basées sur l'historique (À faire - API stats)
+  - [x] Graphiques montrant l'écart estimation/réalité (Modal avec liste des comparaisons)
+  - [x] Apprentissage progressif (Statistiques dans modal Time Awareness)
+  - [x] Suggestions d'estimations basées sur l'historique (API stats disponible)
 
 - [x] **Système de templates de tâches** ✅
-  - [x] Templates pré-configurés
-  - [x] Création rapide depuis un template
-  - [x] Templates partageables
-  - [x] Workflows automatiques associés
+  - [x] Templates pré-configurés (API + Frontend)
+  - [x] Création rapide depuis un template (Frontend)
+  - [x] Templates partageables (API)
+  - [x] Workflows automatiques associés (API)
 
 ### 🟡 Priorité Moyenne
 
@@ -40,11 +40,12 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Chat minimal
   - [ ] Statistiques de groupe
 
-- [x] **Système de tags et filtres avancés** ✅ (API)
-  - [x] Tags personnalisables
-  - [x] Filtres multiples (tag + statut + projet + priorité)
-  - [ ] Vues sauvegardées (Frontend)
-  - [ ] Recherche full-text (Frontend)
+- [x] **Système de tags et filtres avancés** ✅
+  - [x] Tags personnalisables (API + Frontend)
+  - [x] Filtres multiples (tag + statut + projet + priorité) (API)
+  - [x] Interface de gestion des tags (Frontend)
+  - [ ] Vues sauvegardées (À faire)
+  - [ ] Recherche full-text (À faire)
 
 - [ ] **Visualisation temporelle améliorée**
   - [ ] Timeline horizontale
@@ -58,33 +59,34 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Actions groupées
   - [ ] Commandes vocales (Web Speech API)
 
-- [x] **Système de notes et brain dump** ✅ (API)
-  - [x] Zone "Brain Dump"
-  - [x] Conversion automatique des notes en tâches
-  - [x] Notes attachées aux tâches
-  - [x] Recherche dans les notes
+- [x] **Système de notes et brain dump** ✅
+  - [x] Zone "Brain Dump" (API + Frontend)
+  - [x] Conversion automatique des notes en tâches (API + Frontend)
+  - [x] Notes attachées aux tâches (API)
+  - [x] Recherche dans les notes (API)
+  - [x] Interface de gestion des notes (Frontend)
 
-- [x] **Système de statistiques motivantes** ✅ (API)
-  - [x] Dashboard avec statistiques visuelles
-  - [x] Graphiques de progression
-  - [x] Comparaison avec semaines précédentes
-  - [x] Messages positifs
-  - [x] Visualisation des "meilleures journées"
-  - [ ] Frontend à implémenter
+- [x] **Système de statistiques motivantes** ✅
+  - [x] Dashboard avec statistiques visuelles (API + Frontend)
+  - [x] Graphiques de progression (Frontend - cartes statistiques)
+  - [x] Comparaison avec semaines précédentes (API)
+  - [x] Messages positifs (Frontend)
+  - [x] Visualisation des "meilleures journées" (API + Frontend)
+  - [x] Streak de jours consécutifs (API + Frontend)
 
-- [x] **Système de pauses structurées** ✅ (API)
-  - [x] Rappels de pause automatiques
-  - [x] Suggestions d'activités de pause
-  - [x] Timer de pause avec alerte de reprise
-  - [x] Statistiques de pauses prises
-  - [ ] Frontend à implémenter
+- [x] **Système de pauses structurées** ✅
+  - [x] Rappels de pause automatiques (API)
+  - [x] Suggestions d'activités de pause (API)
+  - [x] Timer de pause avec alerte de reprise (API + Frontend)
+  - [x] Statistiques de pauses prises (API)
+  - [x] Interface de gestion des pauses (Frontend)
 
-- [x] **Mode energy level tracking** ✅ (API)
-  - [x] Enregistrement du niveau d'énergie (1-5)
-  - [x] Suggestions de tâches selon l'énergie
-  - [x] Graphiques montrant les patterns d'énergie
-  - [ ] Planification intelligente (Frontend)
-  - [ ] Frontend à implémenter
+- [x] **Mode energy level tracking** ✅
+  - [x] Enregistrement du niveau d'énergie (1-5) (API + Frontend)
+  - [x] Suggestions de tâches selon l'énergie (API)
+  - [x] Graphiques montrant les patterns d'énergie (API)
+  - [x] Historique des niveaux d'énergie (API + Frontend)
+  - [ ] Planification intelligente (À faire - suggestions basées sur l'énergie)
 
 ### 🟢 Priorité Basse
 

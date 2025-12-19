@@ -2842,36 +2842,42 @@ export default function TaskflowPage() {
                 </div>
               )}
 
-              {subtasks[selectedTaskDetail.id] && subtasks[selectedTaskDetail.id].length > 0 && (
-                <div className="task-detail-section">
-                  <label className="task-detail-label">🔨 Sous-tâches</label>
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {subtasks[selectedTaskDetail.id].map((subtask: any) => (
-                      <div key={subtask.id} style={{
-                        padding: '12px',
-                        marginBottom: '8px',
-                        backgroundColor: 'var(--color-secondary)',
-                        borderRadius: '8px',
-                        border: `1px solid ${subtask.status === 'done' ? 'var(--color-success)' : 'var(--color-border)'}`
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <strong>{subtask.title}</strong>
-                            {subtask.description && (
-                              <div style={{ fontSize: '0.85em', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                {subtask.description}
+              {(() => {
+                const taskSubtasks = subtasks[selectedTaskDetail.id]
+                if (taskSubtasks && taskSubtasks.length > 0) {
+                  return (
+                    <div className="task-detail-section">
+                      <label className="task-detail-label">🔨 Sous-tâches ({taskSubtasks.filter((s: any) => s.status === 'done').length}/{taskSubtasks.length} terminées)</label>
+                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {taskSubtasks.map((subtask: any) => (
+                          <div key={subtask.id} style={{
+                            padding: '12px',
+                            marginBottom: '8px',
+                            backgroundColor: 'var(--color-secondary)',
+                            borderRadius: '8px',
+                            border: `1px solid ${subtask.status === 'done' ? 'var(--color-success)' : 'var(--color-border)'}`
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <strong>{subtask.title}</strong>
+                                {subtask.description && (
+                                  <div style={{ fontSize: '0.85em', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                    {subtask.description}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                              <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                                {subtask.status === 'done' ? '✅' : '⏳'}
+                              </span>
+                            </div>
                           </div>
-                          <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
-                            {subtask.status === 'done' ? '✅' : '⏳'}
-                          </span>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )
+                }
+                return null
+              })()}
 
               <div className="task-detail-section">
                 <label className="task-detail-label">Actions rapides</label>

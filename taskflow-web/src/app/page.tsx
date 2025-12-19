@@ -378,6 +378,11 @@ export default function TaskflowPage() {
       if (response.ok) {
         const data = await response.json()
         setTasks(data)
+        // Extraire les projets uniques des tâches et workflows
+        const taskProjects = data.map((t: Task) => t.project).filter((p: string | undefined): p is string => !!p)
+        const workflowProjects = workflows.map((w: Workflow) => w.project).filter((p: string | undefined): p is string => !!p)
+        const allProjects = Array.from(new Set([...taskProjects, ...workflowProjects]))
+        setAvailableProjects(allProjects.sort())
       } else if (response.status === 401) {
         // Token invalide ou expiré
         localStorage.removeItem('token')
@@ -402,6 +407,11 @@ export default function TaskflowPage() {
       if (response.ok) {
         const data = await response.json()
         setWorkflows(data)
+        // Mettre à jour les projets disponibles
+        const workflowProjects = data.map((w: Workflow) => w.project).filter((p: string | undefined): p is string => !!p)
+        const taskProjects = tasks.map((t: Task) => t.project).filter((p: string | undefined): p is string => !!p)
+        const allProjects = Array.from(new Set([...taskProjects, ...workflowProjects]))
+        setAvailableProjects(allProjects.sort())
       } else if (response.status === 401) {
         // Token invalide ou expiré
         localStorage.removeItem('token')
@@ -1765,15 +1775,65 @@ export default function TaskflowPage() {
                   <option value="urgent">Urgente</option>
                 </select>
               </div>
-              <div className="form-group-modern">
+              <div className="form-group-modern" style={{ position: 'relative' }}>
                 <label className="form-label-modern">Projet (optionnel)</label>
                 <input
                   type="text"
                   className="form-input-modern"
                   value={newTask.project}
-                  onChange={(e) => setNewTask({...newTask, project: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setNewTask({...newTask, project: value})
+                    if (value.length > 0) {
+                      const filtered = availableProjects.filter(p => 
+                        p.toLowerCase().includes(value.toLowerCase())
+                      )
+                      setProjectSuggestions(filtered)
+                      setShowProjectSuggestions(true)
+                    } else {
+                      setProjectSuggestions([])
+                      setShowProjectSuggestions(false)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (newTask.project && newTask.project.length > 0) {
+                      const filtered = availableProjects.filter(p => 
+                        p.toLowerCase().includes(newTask.project.toLowerCase())
+                      )
+                      setProjectSuggestions(filtered)
+                      setShowProjectSuggestions(true)
+                    } else {
+                      setProjectSuggestions(availableProjects.slice(0, 10))
+                      setShowProjectSuggestions(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowProjectSuggestions(false), 200)
+                  }}
                   placeholder="Ex: TaskFlow, PITER, Général..."
+                  list="project-list"
                 />
+                <datalist id="project-list">
+                  {availableProjects.map((project, index) => (
+                    <option key={index} value={project} />
+                  ))}
+                </datalist>
+                {showProjectSuggestions && projectSuggestions.length > 0 && (
+                  <div className="project-suggestions">
+                    {projectSuggestions.map((project, index) => (
+                      <div
+                        key={index}
+                        className="project-suggestion-item"
+                        onClick={() => {
+                          setNewTask({...newTask, project})
+                          setShowProjectSuggestions(false)
+                        }}
+                      >
+                        {project}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <small className="form-hint">Pour quel projet cette tâche est-elle destinée ?</small>
               </div>
               <div className="form-group-modern">

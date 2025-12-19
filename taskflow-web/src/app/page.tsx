@@ -455,6 +455,41 @@ export default function TaskflowPage() {
     }
   }
 
+  // 🎨 Feedback visuel pour les actions
+  const showActionFeedback = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    const feedback = document.createElement('div')
+    feedback.className = `action-feedback ${type} fade-in`
+    feedback.textContent = message
+    document.body.appendChild(feedback)
+    
+    setTimeout(() => {
+      feedback.remove()
+    }, 3000)
+  }
+
+  // 🔊 Son de confirmation (optionnel)
+  const playSuccessSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.value = 800
+      oscillator.type = 'sine'
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2)
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.2)
+    } catch (error) {
+      // Ignorer les erreurs audio
+    }
+  }
+
   const formatTime = (seconds: number): string => {
     if (!seconds || seconds === 0) return '0s'
     const hours = Math.floor(seconds / 3600)

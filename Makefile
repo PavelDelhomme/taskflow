@@ -14,8 +14,10 @@ help:
 	@echo "  make clean-cache => Nettoie le cache Next.js (.next)"
 	@echo "  make status  => Affiche le statut des conteneurs TaskFlow"
 	@echo "  make test-data => Génère les données de test (workflows + tâches)"
+	@echo "  make test-data-due-dates => Génère les données de test avec échéances"
 	@echo "  make clean-test => Supprime les données de test (conserve l'utilisateur)"
 	@echo "  make migrate => Applique les migrations de base de données"
+	@echo "  make test-check => Vérifie que tous les services sont opérationnels"
 	@echo "  make clean   => Nettoie Docker"
 	@echo ""
 	@echo "🌐 Accès:"
@@ -89,6 +91,10 @@ clean-cache:
 	@sudo rm -rf taskflow-web/.next 2>/dev/null || true
 	@docker exec taskflow-web-paul rm -rf /app/.next 2>/dev/null || true
 	@echo "✅ Cache Next.js nettoyé !"
+
+test-check:
+	@echo "🧪 Vérification de l'environnement..."
+	@./test-checklist.sh
 
 clean:
 	docker-compose down -v

@@ -175,7 +175,8 @@ export default function TaskflowPage() {
     
     let interval: NodeJS.Timeout | null = null
     
-    if (savedToken) {
+    // Vérifier que le token existe et n'est pas vide
+    if (savedToken && savedToken.trim() !== '') {
       setToken(savedToken)
       setIsLoggedIn(true)
       fetchTasks(savedToken)
@@ -184,8 +185,20 @@ export default function TaskflowPage() {
       initNotifications()
       
       interval = setInterval(() => {
-        checkForReminders(savedToken)
+        const currentToken = localStorage.getItem('token')
+        if (currentToken && currentToken.trim() !== '') {
+          checkForReminders(currentToken)
+        } else {
+          // Token supprimé, arrêter l'intervalle
+          if (interval) {
+            clearInterval(interval)
+          }
+        }
       }, 30 * 60 * 1000)
+    } else {
+      // Pas de token valide, s'assurer que l'utilisateur est déconnecté
+      setIsLoggedIn(false)
+      setToken('')
     }
 
     return () => {
@@ -218,6 +231,8 @@ export default function TaskflowPage() {
   }
 
   const fetchTasks = async (authToken: string) => {
+    if (!authToken) return
+    
     try {
       const response = await fetch(`${API_URL}/tasks/`, {
         headers: {
@@ -227,6 +242,12 @@ export default function TaskflowPage() {
       if (response.ok) {
         const data = await response.json()
         setTasks(data)
+      } else if (response.status === 401) {
+        // Token invalide ou expiré
+        localStorage.removeItem('token')
+        setToken('')
+        setIsLoggedIn(false)
+        setTasks([])
       }
     } catch (error) {
       console.error('Error fetching tasks:', error)
@@ -234,6 +255,8 @@ export default function TaskflowPage() {
   }
 
   const fetchWorkflows = async (authToken: string) => {
+    if (!authToken) return
+    
     try {
       const response = await fetch(`${API_URL}/workflows`, {
         headers: {
@@ -243,6 +266,12 @@ export default function TaskflowPage() {
       if (response.ok) {
         const data = await response.json()
         setWorkflows(data)
+      } else if (response.status === 401) {
+        // Token invalide ou expiré
+        localStorage.removeItem('token')
+        setToken('')
+        setIsLoggedIn(false)
+        setWorkflows([])
       }
     } catch (error) {
       console.error('Error fetching workflows:', error)
@@ -250,6 +279,8 @@ export default function TaskflowPage() {
   }
 
   const checkForReminders = async (authToken: string) => {
+    if (!authToken) return
+    
     try {
       const response = await fetch(`${API_URL}/workflows/remind-new-ticket`, {
         headers: {
@@ -267,6 +298,10 @@ export default function TaskflowPage() {
           )
           setTimeout(() => setShowReminderModal(true), 2000)
         }
+      } else if (response.status === 401) {
+        // Token invalide ou expiré - ne pas déconnecter silencieusement pour les reminders
+        // car c'est juste un check périodique
+        return
       }
     } catch (error) {
       console.error('Error checking reminders:', error)

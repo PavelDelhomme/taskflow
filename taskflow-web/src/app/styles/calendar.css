@@ -145,6 +145,20 @@
   flex-shrink: 0;
 }
 
+.calendar-task-clickable {
+  cursor: pointer;
+}
+
+.calendar-task-dot.calendar-task-clickable {
+  cursor: pointer;
+  transition: transform var(--duration-fast);
+}
+
+.calendar-task-dot.calendar-task-clickable:hover {
+  transform: scale(1.5);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
 .calendar-task-in_progress {
   background: var(--color-primary);
 }
@@ -254,13 +268,21 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-base);
   border-left-width: 4px;
-  cursor: pointer;
   transition: all var(--duration-fast);
+}
+
+.calendar-week-task-item.calendar-task-clickable {
+  cursor: pointer;
 }
 
 .calendar-week-task-item:hover {
   transform: translateX(4px);
   box-shadow: var(--shadow-sm);
+}
+
+.calendar-week-task-item.calendar-task-clickable:hover {
+  background: var(--color-secondary);
+  border-color: var(--color-primary);
 }
 
 .calendar-week-task-title {
@@ -340,9 +362,18 @@
   transition: all var(--duration-normal);
 }
 
+.calendar-day-view-task.calendar-task-clickable {
+  cursor: pointer;
+}
+
 .calendar-day-view-task:hover {
   transform: translateX(4px);
   box-shadow: var(--shadow-md);
+}
+
+.calendar-day-view-task.calendar-task-clickable:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
 }
 
 .calendar-day-view-task-header {
@@ -400,6 +431,18 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-base);
   border-left-width: 4px;
+  transition: all var(--duration-normal);
+}
+
+.calendar-task-item.calendar-task-clickable {
+  cursor: pointer;
+}
+
+.calendar-task-item.calendar-task-clickable:hover {
+  background: var(--color-secondary);
+  border-color: var(--color-primary);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
 }
 
 .calendar-task-header {

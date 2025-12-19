@@ -3,7 +3,12 @@
 import { useState } from 'react'
 import { Task } from '../types'
 
-export default function CalendarView({ tasks }: { tasks: Task[] }) {
+interface CalendarViewProps {
+  tasks: Task[]
+  onTaskClick?: (task: Task) => void
+}
+
+export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week')
@@ -179,8 +184,14 @@ export default function CalendarView({ tasks }: { tasks: Task[] }) {
                     {dayTasks.slice(0, 3).map(task => (
                       <div
                         key={task.id}
-                        className={`calendar-task-dot calendar-task-${task.status}`}
+                        className={`calendar-task-dot calendar-task-${task.status} ${onTaskClick ? 'calendar-task-clickable' : ''}`}
                         title={task.title}
+                        onClick={(e) => {
+                          if (onTaskClick) {
+                            e.stopPropagation()
+                            onTaskClick(task)
+                          }
+                        }}
                       />
                     ))}
                     {dayTasks.length > 3 && (
@@ -257,7 +268,15 @@ export default function CalendarView({ tasks }: { tasks: Task[] }) {
                 const isStandby = task.standby_at && new Date(task.standby_at).toISOString().split('T')[0] === dateStr
 
                 return (
-                  <div key={task.id} className={`calendar-day-view-task calendar-task-${task.status}`}>
+                  <div 
+                    key={task.id} 
+                    className={`calendar-day-view-task calendar-task-${task.status} ${onTaskClick ? 'calendar-task-clickable' : ''}`}
+                    onClick={() => {
+                      if (onTaskClick) {
+                        onTaskClick(task)
+                      }
+                    }}
+                  >
                     <div className="calendar-day-view-task-header">
                       <div className="calendar-day-view-task-title">{task.title}</div>
                       <div className="calendar-day-view-task-badges">
@@ -325,7 +344,15 @@ export default function CalendarView({ tasks }: { tasks: Task[] }) {
                 const isStandby = task.standby_at && new Date(task.standby_at).toISOString().split('T')[0] === dateStr
 
                 return (
-                  <div key={task.id} className={`calendar-task-item calendar-task-${task.status}`}>
+                  <div 
+                    key={task.id} 
+                    className={`calendar-task-item calendar-task-${task.status} ${onTaskClick ? 'calendar-task-clickable' : ''}`}
+                    onClick={() => {
+                      if (onTaskClick) {
+                        onTaskClick(task)
+                      }
+                    }}
+                  >
                     <div className="calendar-task-header">
                       <div>
                         <strong>{task.title}</strong>

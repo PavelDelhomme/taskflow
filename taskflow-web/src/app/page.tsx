@@ -1792,7 +1792,13 @@ export default function TaskflowPage() {
               <button className="modal-close" onClick={() => setShowCalendarModal(false)}>×</button>
             </div>
             <div className="taskflow-modal-body">
-              <CalendarView tasks={tasks} />
+              <CalendarView 
+                tasks={tasks} 
+                onTaskClick={(task) => {
+                  setSelectedTaskDetail(task)
+                  setShowTaskDetailModal(true)
+                }}
+              />
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowCalendarModal(false)}>

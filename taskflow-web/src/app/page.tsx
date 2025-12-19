@@ -1236,22 +1236,24 @@ export default function TaskflowPage() {
   const getTaskActions = (task: Task) => {
     const actions = []
     
-    // Bouton Décomposer pour toutes les tâches
-    actions.push(
-      <button 
-        key="breakdown" 
-        className="btn-task btn-task-secondary" 
-        onClick={() => {
-          setTaskToBreakdown(task)
-          fetchSubtasks(task.id)
-          setBreakdownSteps([''])
-          setShowBreakdownModal(true)
-        }}
-        title="Décomposer en sous-tâches"
-      >
-        🔨 Décomposer
-      </button>
-    )
+    // Bouton Décomposer pour toutes les tâches SAUF celles terminées
+    if (task.status !== 'done') {
+      actions.push(
+        <button 
+          key="breakdown" 
+          className="btn-task btn-task-secondary" 
+          onClick={() => {
+            setTaskToBreakdown(task)
+            fetchSubtasks(task.id)
+            setBreakdownSteps([''])
+            setShowBreakdownModal(true)
+          }}
+          title="Décomposer en sous-tâches"
+        >
+          🔨 Décomposer
+        </button>
+      )
+    }
     
     if (task.status === 'todo') {
       actions.push(

@@ -1,4 +1,4 @@
-.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache
+.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache test-check
 
 help:
 	@echo "🎯 TaskFlow ADHD - Commandes Docker"

@@ -241,6 +241,58 @@
   }
 }
 
+/* Autocomplétion pour les projets */
+.project-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: var(--space-4);
+}
+
+.project-suggestion-item {
+  padding: var(--space-10) var(--space-16);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.project-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.project-suggestion-item:hover {
+  background: var(--color-secondary);
+}
+
+.project-suggestion-item:active {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text);
+}
+
+@media (max-width: 768px) {
+  .project-suggestions {
+    max-height: 150px;
+  }
+
+  .project-suggestion-item {
+    padding: var(--space-12) var(--space-16);
+    font-size: var(--font-size-base);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
 .auth-container.dark .form-input-modern {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.1);

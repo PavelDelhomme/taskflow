@@ -93,6 +93,9 @@ export default function TaskflowPage() {
   const [showProjectView, setShowProjectView] = useState(false)
   const [currentActivity, setCurrentActivity] = useState<any>(null)
   const [showCurrentActivityModal, setShowCurrentActivityModal] = useState(false)
+  const [availableProjects, setAvailableProjects] = useState<string[]>([])
+  const [projectSuggestions, setProjectSuggestions] = useState<string[]>([])
+  const [showProjectSuggestions, setShowProjectSuggestions] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
 
@@ -1893,15 +1896,65 @@ export default function TaskflowPage() {
                   <option value="urgent">Urgente</option>
                 </select>
               </div>
-              <div className="form-group-modern">
+              <div className="form-group-modern" style={{ position: 'relative' }}>
                 <label className="form-label-modern">Projet (optionnel)</label>
                 <input
                   type="text"
                   className="form-input-modern"
                   value={selectedTask.project || ''}
-                  onChange={(e) => setSelectedTask({...selectedTask, project: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setSelectedTask({...selectedTask, project: value})
+                    if (value.length > 0) {
+                      const filtered = availableProjects.filter(p => 
+                        p.toLowerCase().includes(value.toLowerCase())
+                      )
+                      setProjectSuggestions(filtered)
+                      setShowProjectSuggestions(true)
+                    } else {
+                      setProjectSuggestions([])
+                      setShowProjectSuggestions(false)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (selectedTask.project && selectedTask.project.length > 0) {
+                      const filtered = availableProjects.filter(p => 
+                        p.toLowerCase().includes(selectedTask.project!.toLowerCase())
+                      )
+                      setProjectSuggestions(filtered)
+                      setShowProjectSuggestions(true)
+                    } else {
+                      setProjectSuggestions(availableProjects.slice(0, 10))
+                      setShowProjectSuggestions(true)
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowProjectSuggestions(false), 200)
+                  }}
                   placeholder="Ex: TaskFlow, PITER, Général..."
+                  list="project-list-edit"
                 />
+                <datalist id="project-list-edit">
+                  {availableProjects.map((project, index) => (
+                    <option key={index} value={project} />
+                  ))}
+                </datalist>
+                {showProjectSuggestions && projectSuggestions.length > 0 && (
+                  <div className="project-suggestions">
+                    {projectSuggestions.map((project, index) => (
+                      <div
+                        key={index}
+                        className="project-suggestion-item"
+                        onClick={() => {
+                          setSelectedTask({...selectedTask, project})
+                          setShowProjectSuggestions(false)
+                        }}
+                      >
+                        {project}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Date à faire (optionnel)</label>

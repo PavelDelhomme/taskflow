@@ -151,7 +151,10 @@ export default function TaskflowPage() {
   const [voiceCommandsEnabled, setVoiceCommandsEnabled] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
+  // Utiliser une variable d'environnement ou une valeur par défaut
+  const API_URL = (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) 
+    ? process.env.NEXT_PUBLIC_API_URL 
+    : 'http://localhost:4001'
 
   useEffect(() => {
     // Ajouter les styles CSS personnalisés

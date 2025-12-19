@@ -445,3 +445,155 @@
   color: var(--color-text-secondary);
   font-style: italic;
 }
+
+/* Responsive styles pour petits écrans */
+@media (max-width: 768px) {
+  .calendar-header {
+    flex-wrap: wrap;
+    gap: var(--space-12);
+    padding: var(--space-12);
+  }
+
+  .calendar-view-selector {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    margin-right: 0;
+    margin-top: var(--space-12);
+  }
+
+  .calendar-view-btn {
+    flex: 1;
+    padding: var(--space-8) var(--space-12);
+    font-size: var(--font-size-xs);
+  }
+
+  .calendar-month {
+    font-size: var(--font-size-base);
+    order: 2;
+    flex: 1;
+    text-align: center;
+  }
+
+  .btn-calendar-nav {
+    order: 1;
+    width: 32px;
+    height: 32px;
+    font-size: var(--font-size-lg);
+  }
+
+  .calendar-grid {
+    gap: var(--space-2);
+  }
+
+  .calendar-day {
+    min-height: 50px;
+    padding: var(--space-2);
+  }
+
+  .calendar-day-number {
+    font-size: var(--font-size-xs);
+  }
+
+  .calendar-day-tasks {
+    gap: 1px;
+  }
+
+  .calendar-task-dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .calendar-week-view {
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+  }
+
+  .calendar-week-day {
+    min-height: 200px;
+  }
+
+  .calendar-day-view-header {
+    padding: var(--space-16);
+  }
+
+  .calendar-day-view-day-number {
+    font-size: var(--font-size-3xl);
+  }
+
+  .calendar-selected-date {
+    padding: var(--space-16);
+    margin-top: var(--space-16);
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-header {
+    padding: var(--space-8);
+  }
+
+  .calendar-view-selector {
+    gap: var(--space-4);
+  }
+
+  .calendar-view-btn {
+    padding: var(--space-6) var(--space-8);
+    font-size: 10px;
+  }
+
+  .calendar-month {
+    font-size: var(--font-size-sm);
+  }
+
+  .calendar-grid {
+    gap: 1px;
+  }
+
+  .calendar-day {
+    min-height: 40px;
+    padding: var(--space-1);
+  }
+
+  .calendar-day-header {
+    padding: var(--space-4);
+    font-size: 10px;
+  }
+
+  .calendar-day-number {
+    font-size: 10px;
+  }
+
+  .calendar-week-view {
+    gap: var(--space-8);
+  }
+
+  .calendar-week-day {
+    padding: var(--space-12);
+    min-height: 150px;
+  }
+
+  .calendar-week-day-header {
+    padding-bottom: var(--space-8);
+    margin-bottom: var(--space-8);
+  }
+
+  .calendar-week-day-number {
+    font-size: var(--font-size-xl);
+  }
+
+  .calendar-day-view-header {
+    padding: var(--space-12);
+  }
+
+  .calendar-day-view-day-number {
+    font-size: var(--font-size-2xl);
+  }
+
+  .calendar-day-view-task {
+    padding: var(--space-12);
+  }
+
+  .calendar-task-item {
+    padding: var(--space-12);
+  }
+}

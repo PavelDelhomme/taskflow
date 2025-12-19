@@ -6,7 +6,7 @@ import { Task } from '../types'
 export default function CalendarView({ tasks }: { tasks: Task[] }) {
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week')
 
   const month = currentDate.getMonth()
   const year = currentDate.getFullYear()

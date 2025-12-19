@@ -70,3 +70,34 @@
   flex-wrap: wrap;
   gap: var(--space-8);
 }
+
+/* Agrandir les boutons d'action dans la modal de détails sur mobile */
+@media (max-width: 768px) {
+  .task-detail-actions {
+    gap: var(--space-10);
+  }
+
+  .task-detail-actions .btn-task {
+    padding: var(--space-10) var(--space-16);
+    font-size: var(--font-size-sm);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .task-detail-actions {
+    flex-direction: column;
+    gap: var(--space-8);
+    width: 100%;
+  }
+
+  .task-detail-actions .btn-task {
+    width: 100%;
+    padding: var(--space-12) var(--space-16);
+    font-size: var(--font-size-base);
+    min-height: 48px;
+  }
+}

@@ -285,6 +285,37 @@
   color: var(--color-btn-primary-text);
 }
 
+/* Agrandir les boutons d'action sur mobile */
+@media (max-width: 768px) {
+  .task-actions {
+    gap: var(--space-10);
+  }
+
+  .btn-task {
+    padding: var(--space-10) var(--space-16);
+    font-size: var(--font-size-sm);
+    min-height: 44px; /* Taille minimale recommandée pour les zones tactiles */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .task-actions {
+    flex-direction: column;
+    gap: var(--space-8);
+    width: 100%;
+  }
+
+  .btn-task {
+    width: 100%;
+    padding: var(--space-12) var(--space-16);
+    font-size: var(--font-size-base);
+    min-height: 48px; /* Encore plus grand sur très petits écrans */
+  }
+}
+
 .taskflow-empty {
   padding: var(--space-32);
   text-align: center;

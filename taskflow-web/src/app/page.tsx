@@ -731,6 +731,53 @@ export default function TaskflowPage() {
     }
   }
 
+  // 🔔 Rappels - Récupérer les rappels en attente
+  const fetchPendingReminders = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/reminders/pending`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPendingReminders(data)
+        
+        // Afficher les notifications pour les rappels
+        data.forEach((reminder: any) => {
+          if (reminder.task_id) {
+            const task = tasks.find(t => t.id === reminder.task_id)
+            if (task) {
+              sendNotification('🔔 Rappel', `Tâche: ${task.title}`, { tag: `reminder-${reminder.id}` })
+            }
+          } else {
+            sendNotification('🔔 Rappel', 'Vous avez un rappel', { tag: `reminder-${reminder.id}` })
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching reminders:', error)
+    }
+  }
+
+  // Créer automatiquement les rappels
+  const createAutoReminders = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/reminders/auto-create`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.created > 0) {
+          fetchPendingReminders()
+        }
+      }
+    } catch (error) {
+      console.error('Error creating auto reminders:', error)
+    }
+  }
+
   const checkForReminders = async (authToken: string) => {
     if (!authToken) return
     

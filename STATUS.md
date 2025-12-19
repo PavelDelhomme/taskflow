@@ -90,12 +90,12 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ### 🟢 Priorité Basse
 
-- [ ] **Améliorations UX/UI** 🔄
-  - [ ] Feedback immédiat (animations de succès)
-  - [ ] Sons de confirmation (optionnel)
-  - [ ] Accessibilité améliorée (lecteurs d'écran, navigation clavier)
-  - [ ] Tailles de police ajustables
-  - [ ] Contraste élevé par défaut
+- [x] **Améliorations UX/UI** ✅
+  - [x] Feedback immédiat (animations de succès) (Frontend)
+  - [x] Sons de confirmation (optionnel) (Frontend)
+  - [x] Accessibilité améliorée (skip links, aria-labels, focus-visible) (Frontend)
+  - [x] Tailles de police ajustables (Frontend)
+  - [x] Contraste élevé par défaut (Frontend - media query)
 
 - [ ] **IA et Machine Learning** 🔄
   - [ ] Prédiction du temps nécessaire basée sur l'historique
@@ -107,13 +107,13 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 **Total des fonctionnalités :** 14  
 **API Terminées :** 9  
-**Frontend Terminées :** 11  
-**En cours :** 3  
+**Frontend Terminées :** 12  
+**En cours :** 2  
 **Progression API :** 64%  
-**Progression Frontend :** 79%  
-**Progression Globale :** 71%
+**Progression Frontend :** 86%  
+**Progression Globale :** 75%
 
-### ✅ Fonctionnalités Complétées (11/14)
+### ✅ Fonctionnalités Complétées (12/14)
 1. ✅ Time Awareness (estimation vs réalité)
 2. ✅ Templates de tâches
 3. ✅ Breakdown automatique
@@ -125,10 +125,10 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 9. ✅ Rappels contextuels intelligents
 10. ✅ Visualisation temporelle améliorée
 11. ✅ Commandes vocales et raccourcis clavier
+12. ✅ Améliorations UX/UI
 
-### 🔄 Fonctionnalités En Cours (3/14)
-12. 🔄 Body Doubling virtuel
-13. 🔄 Améliorations UX/UI
+### 🔄 Fonctionnalités En Cours (2/14)
+13. 🔄 Body Doubling virtuel
 14. 🔄 IA/ML
 
 ---

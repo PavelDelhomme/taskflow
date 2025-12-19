@@ -19,6 +19,13 @@ def get_db():
     finally:
         conn.close()
 
+def get_db_connection():
+    """
+    Retourne une connexion directe à la base de données
+    (pour les routes qui ont besoin de plus de contrôle)
+    """
+    return psycopg2.connect(DATABASE_URL)
+
 def init_db():
     """
     Cette fonction n'initialise plus rien car init.sql fait le travail

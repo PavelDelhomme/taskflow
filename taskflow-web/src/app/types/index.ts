@@ -23,6 +23,7 @@ export interface Task {
   time_spent_seconds?: number
   time_in_progress_seconds?: number
   project?: string
+  estimated_time_minutes?: number
 }
 
 export interface Workflow {

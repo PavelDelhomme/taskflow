@@ -87,7 +87,8 @@ export default function TaskflowPage() {
     priority: 'medium',
     trello_id: '',
     due_date: '',
-    project: ''
+    project: '',
+    estimated_time_minutes: null as number | null
   })
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [showProjectView, setShowProjectView] = useState(false)
@@ -583,7 +584,8 @@ export default function TaskflowPage() {
       const taskData = {
         ...newTask,
         due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null,
-        project: newTask.project || null
+        project: newTask.project || null,
+        estimated_time_minutes: newTask.estimated_time_minutes || null
       }
       
       const response = await fetch(`${API_URL}/tasks/`, {
@@ -596,7 +598,7 @@ export default function TaskflowPage() {
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '' })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '', estimated_time_minutes: null })
         setShowCreateModal(false)
         fetchTasks(token)
         sendNotification('✅ Tâche créée', `"${newTask.title}" a été ajoutée`)
@@ -1846,6 +1848,22 @@ export default function TaskflowPage() {
                 />
                 <small className="form-hint">Vous pouvez définir une date et heure précise, ou seulement la date</small>
               </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Temps estimé (optionnel)</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    className="form-input-modern"
+                    value={newTask.estimated_time_minutes || ''}
+                    onChange={(e) => setNewTask({...newTask, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : null})}
+                    placeholder="Ex: 30"
+                    min="1"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>minutes</span>
+                </div>
+                <small className="form-hint">Estimez le temps nécessaire pour compléter cette tâche</small>
+              </div>
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowCreateModal(false)}>
@@ -2025,6 +2043,22 @@ export default function TaskflowPage() {
                   onChange={(e) => setSelectedTask({...selectedTask, due_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
                 />
                 <small className="form-hint">Vous pouvez définir une date et heure précise pour cette tâche</small>
+              </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Temps estimé (optionnel)</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    className="form-input-modern"
+                    value={selectedTask.estimated_time_minutes || ''}
+                    onChange={(e) => setSelectedTask({...selectedTask, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : null})}
+                    placeholder="Ex: 30"
+                    min="1"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>minutes</span>
+                </div>
+                <small className="form-hint">Estimez le temps nécessaire pour compléter cette tâche</small>
               </div>
               {selectedTask.status === 'blocked' && (
                 <div className="form-group-modern">
@@ -2395,18 +2429,85 @@ export default function TaskflowPage() {
                 </div>
               </div>
 
-              {(selectedTaskDetail.time_spent_seconds || selectedTaskDetail.time_in_progress_seconds) && (
+              {(selectedTaskDetail.time_spent_seconds || selectedTaskDetail.time_in_progress_seconds || selectedTaskDetail.estimated_time_minutes) && (
                 <div className="task-detail-section">
                   <label className="task-detail-label">⏱️ Statistiques de temps</label>
                   <div className="task-detail-dates">
+                    {selectedTaskDetail.estimated_time_minutes && (
+                      <div className="task-detail-date">
+                        <strong>⏳ Temps estimé:</strong> {selectedTaskDetail.estimated_time_minutes} minutes
+                      </div>
+                    )}
                     {selectedTaskDetail.time_in_progress_seconds && selectedTaskDetail.time_in_progress_seconds > 0 && (
                       <div className="task-detail-date">
-                        <strong>Temps en cours:</strong> {formatTime(selectedTaskDetail.time_in_progress_seconds)}
+                        <strong>🔄 Temps en cours:</strong> {formatTime(selectedTaskDetail.time_in_progress_seconds)}
                       </div>
                     )}
                     {selectedTaskDetail.time_spent_seconds && selectedTaskDetail.time_spent_seconds > 0 && (
                       <div className="task-detail-date">
-                        <strong>Temps total:</strong> {formatTime(selectedTaskDetail.time_spent_seconds)}
+                        <strong>✅ Temps total:</strong> {formatTime(selectedTaskDetail.time_spent_seconds)}
+                      </div>
+                    )}
+                    {selectedTaskDetail.estimated_time_minutes && selectedTaskDetail.time_spent_seconds && selectedTaskDetail.time_spent_seconds > 0 && (
+                      <div className="task-detail-date" style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginTop: '8px',
+                        backgroundColor: (() => {
+                          const estimatedSeconds = selectedTaskDetail.estimated_time_minutes * 60
+                          const actualSeconds = selectedTaskDetail.time_spent_seconds
+                          const diffPercent = ((actualSeconds - estimatedSeconds) / estimatedSeconds) * 100
+                          if (Math.abs(diffPercent) <= 20) return 'rgba(25, 135, 84, 0.1)'
+                          if (Math.abs(diffPercent) <= 50) return 'rgba(255, 193, 7, 0.1)'
+                          return 'rgba(220, 53, 69, 0.1)'
+                        })(),
+                        border: '1px solid',
+                        borderColor: (() => {
+                          const estimatedSeconds = selectedTaskDetail.estimated_time_minutes * 60
+                          const actualSeconds = selectedTaskDetail.time_spent_seconds
+                          const diffPercent = ((actualSeconds - estimatedSeconds) / estimatedSeconds) * 100
+                          if (Math.abs(diffPercent) <= 20) return 'rgba(25, 135, 84, 0.3)'
+                          if (Math.abs(diffPercent) <= 50) return 'rgba(255, 193, 7, 0.3)'
+                          return 'rgba(220, 53, 69, 0.3)'
+                        })()
+                      }}>
+                        <strong>📊 Comparaison Estimation vs Réalité:</strong>
+                        <div style={{ marginTop: '8px' }}>
+                          {(() => {
+                            const estimatedSeconds = selectedTaskDetail.estimated_time_minutes * 60
+                            const actualSeconds = selectedTaskDetail.time_spent_seconds
+                            const diffSeconds = actualSeconds - estimatedSeconds
+                            const diffPercent = ((actualSeconds - estimatedSeconds) / estimatedSeconds) * 100
+                            const diffMinutes = Math.round(diffSeconds / 60)
+                            
+                            let status = '✅ Précision'
+                            let emoji = '✅'
+                            if (diffPercent > 50) {
+                              status = '⚠️ Sous-estimation'
+                              emoji = '⚠️'
+                            } else if (diffPercent < -50) {
+                              status = '⚡ Sur-estimation'
+                              emoji = '⚡'
+                            } else if (diffPercent > 20) {
+                              status = '⚠️ Légère sous-estimation'
+                              emoji = '⚠️'
+                            } else if (diffPercent < -20) {
+                              status = '⚡ Légère sur-estimation'
+                              emoji = '⚡'
+                            }
+                            
+                            return (
+                              <div>
+                                <div style={{ marginBottom: '4px' }}>
+                                  {emoji} <strong>{status}</strong>
+                                </div>
+                                <div style={{ fontSize: '0.9em', color: 'var(--color-text-secondary)' }}>
+                                  {diffMinutes > 0 ? `+${diffMinutes}` : diffMinutes} minutes ({diffPercent > 0 ? '+' : ''}{diffPercent.toFixed(1)}%)
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
                       </div>
                     )}
                   </div>

@@ -33,6 +33,28 @@
   transform: scale(1.1);
 }
 
+.btn-calendar-today {
+  background: var(--color-success);
+  color: var(--color-btn-primary-text);
+  border: none;
+  border-radius: var(--radius-base);
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  transition: all var(--duration-normal);
+  margin-left: var(--space-16);
+}
+
+.btn-calendar-today:hover {
+  background: var(--color-success-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
 .calendar-view-selector {
   display: flex;
   gap: var(--space-8);

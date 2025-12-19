@@ -16,6 +16,7 @@ class TaskCreate(BaseModel):
     priority: str = "medium"  # low, medium, high
     trello_id: Optional[str] = None
     due_date: Optional[datetime] = None
+    project: Optional[str] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -25,6 +26,7 @@ class TaskUpdate(BaseModel):
     blocked_reason: Optional[str] = None
     trello_id: Optional[str] = None
     due_date: Optional[datetime] = None
+    project: Optional[str] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -40,6 +42,9 @@ class TaskResponse(BaseModel):
     completed_at: Optional[datetime]
     standby_at: Optional[datetime]
     due_date: Optional[datetime]
+    time_spent_seconds: Optional[int] = 0
+    time_in_progress_seconds: Optional[int] = 0
+    project: Optional[str] = None
 
 # 📋 ROUTES TASKS
 
@@ -51,8 +56,8 @@ async def create_task(task_data: TaskCreate, current_user = Depends(get_current_
     
     with get_db() as cursor:
         cursor.execute("""
-            INSERT INTO tasks (user_id, title, description, priority, trello_id, due_date) 
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO tasks (user_id, title, description, priority, trello_id, due_date, project) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING *
         """, (
             user_id,
@@ -60,7 +65,8 @@ async def create_task(task_data: TaskCreate, current_user = Depends(get_current_
             task_data.description,
             task_data.priority,
             task_data.trello_id,
-            task_data.due_date
+            task_data.due_date,
+            task_data.project
         ))
         
         new_task = cursor.fetchone()
@@ -169,16 +175,49 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
             params.append(task_data.description)
             
         if task_data.status is not None:
+            # Récupérer l'ancien statut pour calculer le temps
+            old_status = existing_task.get('status')
+            old_started_at = existing_task.get('started_at')
+            old_time_in_progress = existing_task.get('time_in_progress_seconds') or 0
+            old_time_spent = existing_task.get('time_spent_seconds') or 0
+            
             update_fields.append("status = %s")
             params.append(task_data.status)
             
             # Auto-timestamps selon status
             if task_data.status == "in_progress":
-                update_fields.append("started_at = CURRENT_TIMESTAMP")
+                if not old_started_at:
+                    update_fields.append("started_at = CURRENT_TIMESTAMP")
+                # Si on passe de standby/blocked/todo à in_progress, on démarre le timer
+                if old_status in ['standby', 'blocked', 'todo', 'review']:
+                    update_fields.append("started_at = CURRENT_TIMESTAMP")
             elif task_data.status == "done":
                 update_fields.append("completed_at = CURRENT_TIMESTAMP")
+                # Calculer le temps total passé si on était en cours
+                if old_status == "in_progress" and old_started_at:
+                    # Utiliser EXTRACT pour calculer la différence en secondes
+                    update_fields.append("""
+                        time_in_progress_seconds = time_in_progress_seconds + 
+                        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+                    """.strip())
+                    update_fields.append("""
+                        time_spent_seconds = time_spent_seconds + 
+                        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+                    """.strip())
             elif task_data.status == "standby":
                 update_fields.append("standby_at = CURRENT_TIMESTAMP")
+                # Si on passe de in_progress à standby, on calcule le temps passé
+                if old_status == "in_progress" and old_started_at:
+                    # Utiliser EXTRACT pour calculer la différence en secondes
+                    update_fields.append("""
+                        time_in_progress_seconds = time_in_progress_seconds + 
+                        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+                    """.strip())
+                    update_fields.append("""
+                        time_spent_seconds = time_spent_seconds + 
+                        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+                    """.strip())
+                    update_fields.append("started_at = NULL")
                 
         if task_data.priority is not None:
             update_fields.append("priority = %s")
@@ -195,6 +234,10 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
         if task_data.due_date is not None:
             update_fields.append("due_date = %s")
             params.append(task_data.due_date)
+        
+        if task_data.project is not None:
+            update_fields.append("project = %s")
+            params.append(task_data.project)
         
         # Toujours mettre à jour updated_at
         update_fields.append("updated_at = CURRENT_TIMESTAMP")
@@ -280,6 +323,43 @@ async def get_task_logs(task_id: int, current_user = Depends(get_current_user)):
         
         return logs
 
+@router.post("/{task_id}/update-time")
+async def update_task_time(task_id: int, time_data: dict, current_user = Depends(get_current_user)):
+    """Mettre à jour le temps passé sur une tâche (pour time tracking continu)"""
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
+    with get_db() as cursor:
+        # Vérifier que la tâche existe et appartient à l'utilisateur
+        cursor.execute(
+            "SELECT * FROM tasks WHERE id = %s AND user_id = %s",
+            (task_id, user_id)
+        )
+        existing_task = cursor.fetchone()
+        
+        if not existing_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Mettre à jour le temps
+        update_fields = []
+        params = []
+        
+        if 'time_in_progress_seconds' in time_data:
+            update_fields.append("time_in_progress_seconds = %s")
+            params.append(time_data['time_in_progress_seconds'])
+        
+        if 'time_spent_seconds' in time_data:
+            update_fields.append("time_spent_seconds = %s")
+            params.append(time_data['time_spent_seconds'])
+        
+        if update_fields:
+            query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s AND user_id = %s RETURNING *"
+            params.extend([task_id, user_id])
+            cursor.execute(query, params)
+            updated_task = cursor.fetchone()
+            return dict(updated_task)
+        
+        return existing_task
+
 @router.get("/stats/summary")
 async def get_tasks_stats(current_user = Depends(get_current_user)):
     """Statistiques des tâches"""
@@ -297,10 +377,59 @@ async def get_tasks_stats(current_user = Depends(get_current_user)):
                 COUNT(CASE WHEN status = 'standby' THEN 1 END) as standby,
                 COUNT(CASE WHEN priority = 'high' THEN 1 END) as high_priority,
                 COUNT(CASE WHEN priority = 'medium' THEN 1 END) as medium_priority,
-                COUNT(CASE WHEN priority = 'low' THEN 1 END) as low_priority
+                COUNT(CASE WHEN priority = 'low' THEN 1 END) as low_priority,
+                SUM(time_spent_seconds) as total_time_spent,
+                SUM(time_in_progress_seconds) as total_time_in_progress
             FROM tasks 
             WHERE user_id = %s AND deleted_at IS NULL
         """, (user_id,))
         
         stats = cursor.fetchone()
         return stats
+
+@router.get("/stats/current")
+async def get_current_activity(current_user = Depends(get_current_user)):
+    """Rapport rapide de l'activité actuelle"""
+    user_id = current_user["user_id"] if isinstance(current_user, dict) else current_user
+    
+    with get_db() as cursor:
+        # Tâches en cours avec temps
+        cursor.execute("""
+            SELECT 
+                id, title, status, priority, project,
+                started_at, time_in_progress_seconds, time_spent_seconds,
+                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER as current_session_time
+            FROM tasks 
+            WHERE user_id = %s AND status = 'in_progress' AND deleted_at IS NULL
+            ORDER BY started_at DESC
+        """, (user_id,))
+        in_progress = cursor.fetchall()
+        
+        # Tâches terminées aujourd'hui
+        cursor.execute("""
+            SELECT COUNT(*) as count, SUM(time_spent_seconds) as total_time
+            FROM tasks 
+            WHERE user_id = %s AND status = 'done' 
+            AND DATE(completed_at) = CURRENT_DATE
+            AND deleted_at IS NULL
+        """, (user_id,))
+        today_completed = cursor.fetchone()
+        
+        # Tâches par projet
+        cursor.execute("""
+            SELECT 
+                COALESCE(project, 'Sans projet') as project,
+                COUNT(*) as count,
+                COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_count
+            FROM tasks 
+            WHERE user_id = %s AND deleted_at IS NULL
+            GROUP BY project
+            ORDER BY count DESC
+        """, (user_id,))
+        by_project = cursor.fetchall()
+        
+        return {
+            "in_progress": [dict(task) for task in in_progress],
+            "today_completed": dict(today_completed),
+            "by_project": [dict(proj) for proj in by_project]
+        }

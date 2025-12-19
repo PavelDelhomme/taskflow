@@ -47,6 +47,7 @@ export default function TaskflowPage() {
     review: true,
     done: true
   })
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const [showAllTasks, setShowAllTasks] = useState<{[key: string]: boolean}>({
     in_progress: false,
     todo: false,
@@ -61,6 +62,8 @@ export default function TaskflowPage() {
     category: 'dev',
     project: ''
   })
+  const [workflowSteps, setWorkflowSteps] = useState<string[]>([''])
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   
   // 👁️ États pour show/hide password
   const [showLoginPassword, setShowLoginPassword] = useState(false)
@@ -83,8 +86,13 @@ export default function TaskflowPage() {
     description: '',
     priority: 'medium',
     trello_id: '',
-    due_date: ''
+    due_date: '',
+    project: ''
   })
+  const [selectedProject, setSelectedProject] = useState<string | null>(null)
+  const [showProjectView, setShowProjectView] = useState(false)
+  const [currentActivity, setCurrentActivity] = useState<any>(null)
+  const [showCurrentActivityModal, setShowCurrentActivityModal] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
 
@@ -212,6 +220,50 @@ export default function TaskflowPage() {
     }
   }, [])
 
+  // ⏱️ Time tracking continu pour les tâches en cours
+  useEffect(() => {
+    if (!isLoggedIn || !token) return
+
+    const updateTimeTracking = async () => {
+      const inProgressTasks = tasks.filter(t => t.status === 'in_progress' && t.started_at)
+      
+      for (const task of inProgressTasks) {
+        if (task.started_at) {
+          try {
+            // Mettre à jour le temps toutes les minutes
+            const response = await fetch(`${API_URL}/tasks/${task.id}/update-time`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                time_in_progress_seconds: (task.time_in_progress_seconds || 0) + 60,
+                time_spent_seconds: (task.time_spent_seconds || 0) + 60
+              })
+            })
+            if (response.ok) {
+              // Rafraîchir les tâches après mise à jour
+              fetchTasks(token)
+            }
+          } catch (error) {
+            console.error('Error updating time tracking:', error)
+          }
+        }
+      }
+    }
+
+    const timeTrackingInterval = setInterval(() => {
+      updateTimeTracking()
+    }, 60000) // Mettre à jour toutes les minutes
+
+    return () => {
+      if (timeTrackingInterval) {
+        clearInterval(timeTrackingInterval)
+      }
+    }
+  }, [isLoggedIn, token, tasks])
+
   const initNotifications = async () => {
     if ('Notification' in window && 'serviceWorker' in navigator) {
       const permission = await Notification.requestPermission()
@@ -229,6 +281,86 @@ export default function TaskflowPage() {
         ...options
       })
     }
+  }
+
+  const formatTime = (seconds: number): string => {
+    if (!seconds || seconds === 0) return '0s'
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    const parts: string[] = []
+    if (hours > 0) parts.push(`${hours}h`)
+    if (minutes > 0) parts.push(`${minutes}m`)
+    if (secs > 0 && hours === 0) parts.push(`${secs}s`)
+    return parts.join(' ') || '0s'
+  }
+
+  const getTaskDateInfo = (task: Task): { label: string, date: Date | null, icon: string } | null => {
+    if (task.status === 'done' && task.completed_at) {
+      return {
+        label: 'Terminée',
+        date: new Date(task.completed_at),
+        icon: '✅'
+      }
+    }
+    if (task.status === 'blocked') {
+      // Pour les tâches bloquées, on peut afficher la date de création ou une date de blocage si elle existe
+      if (task.created_at) {
+        return {
+          label: 'Créée',
+          date: new Date(task.created_at),
+          icon: '🚫'
+        }
+      }
+    }
+    if (task.status === 'standby' && task.standby_at) {
+      return {
+        label: 'En standby',
+        date: new Date(task.standby_at),
+        icon: '⏸️'
+      }
+    }
+    if (task.status === 'review') {
+      // Pour les tâches en review, on peut afficher la date de création
+      if (task.created_at) {
+        return {
+          label: 'Créée',
+          date: new Date(task.created_at),
+          icon: '⏳'
+        }
+      }
+    }
+    if (task.status === 'in_progress' && task.started_at) {
+      return {
+        label: 'Démarrée',
+        date: new Date(task.started_at),
+        icon: '🔄'
+      }
+    }
+    if (task.status === 'todo') {
+      if (task.due_date) {
+        return {
+          label: 'À faire',
+          date: new Date(task.due_date),
+          icon: '📅'
+        }
+      } else if (task.created_at) {
+        return {
+          label: 'Créée',
+          date: new Date(task.created_at),
+          icon: '📋'
+        }
+      }
+    }
+    // Fallback : afficher la date de création si disponible
+    if (task.created_at) {
+      return {
+        label: 'Créée',
+        date: new Date(task.created_at),
+        icon: '📋'
+      }
+    }
+    return null
   }
 
   const fetchTasks = async (authToken: string) => {
@@ -343,6 +475,25 @@ export default function TaskflowPage() {
     }
   }
 
+  const fetchCurrentActivity = async () => {
+    try {
+      const response = await fetch(`${API_URL}/tasks/stats/current`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentActivity(data)
+        setShowCurrentActivityModal(true)
+      } else if (response.status === 401) {
+        logout()
+      }
+    } catch (error) {
+      console.error('Error fetching current activity:', error)
+    }
+  }
+
   const login = async () => {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -418,7 +569,8 @@ export default function TaskflowPage() {
     try {
       const taskData = {
         ...newTask,
-        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null
+        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null,
+        project: newTask.project || null
       }
       
       const response = await fetch(`${API_URL}/tasks/`, {
@@ -431,7 +583,7 @@ export default function TaskflowPage() {
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '' })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '' })
         setShowCreateModal(false)
         fetchTasks(token)
         sendNotification('✅ Tâche créée', `"${newTask.title}" a été ajoutée`)
@@ -443,6 +595,12 @@ export default function TaskflowPage() {
 
   const createWorkflow = async () => {
     try {
+      const stepsText = workflowSteps.filter(s => s.trim() !== '').join('\n')
+      if (!stepsText) {
+        alert('Veuillez ajouter au moins une étape')
+        return
+      }
+      
       const response = await fetch(`${API_URL}/workflows`, {
         method: 'POST',
         headers: {
@@ -451,7 +609,7 @@ export default function TaskflowPage() {
         },
         body: JSON.stringify({
           name: newWorkflow.name,
-          steps: newWorkflow.steps,
+          steps: stepsText,
           category: newWorkflow.category,
           project: newWorkflow.project || null
         })
@@ -459,6 +617,8 @@ export default function TaskflowPage() {
 
       if (response.ok) {
         setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+        setWorkflowSteps([''])
+        setEditingWorkflow(null)
         setShowCreateWorkflowModal(false)
         fetchWorkflows(token)
         sendNotification('✅ Workflow créé', `"${newWorkflow.name}" a été créé`)
@@ -469,6 +629,47 @@ export default function TaskflowPage() {
     } catch (error) {
       console.error('Error creating workflow:', error)
       alert('Erreur lors de la création du workflow')
+    }
+  }
+
+  const updateWorkflow = async () => {
+    if (!editingWorkflow) return
+    
+    try {
+      const stepsText = workflowSteps.filter(s => s.trim() !== '').join('\n')
+      if (!stepsText) {
+        alert('Veuillez ajouter au moins une étape')
+        return
+      }
+      
+      const response = await fetch(`${API_URL}/workflows/${editingWorkflow.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newWorkflow.name,
+          steps: stepsText,
+          category: newWorkflow.category,
+          project: newWorkflow.project || null
+        })
+      })
+
+      if (response.ok) {
+        setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+        setWorkflowSteps([''])
+        setEditingWorkflow(null)
+        setShowCreateWorkflowModal(false)
+        fetchWorkflows(token)
+        sendNotification('✅ Workflow modifié', `"${newWorkflow.name}" a été modifié`)
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'Erreur lors de la modification du workflow')
+      }
+    } catch (error) {
+      console.error('Error updating workflow:', error)
+      alert('Erreur lors de la modification du workflow')
     }
   }
 
@@ -833,30 +1034,54 @@ export default function TaskflowPage() {
                     <span className="btn-label">Corbeille</span>
                   </button>
                 </div>
-                <button 
-                  className={`btn-nav btn-nav-icon ${notificationsEnabled ? 'active' : ''}`} 
-                  onClick={() => setShowNotificationModal(true)}
-                  title="Notifications"
-                >
-                  🔔
-                </button>
-                <button 
-                  className="btn-nav btn-nav-icon" 
-                  onClick={() => setDarkMode(!darkMode)}
-                  title={darkMode ? 'Mode clair' : 'Mode sombre'}
-                  aria-label={darkMode ? 'Mode clair' : 'Mode sombre'}
-                >
-                  {darkMode ? '☀️' : '🌙'}
-                </button>
-                <button 
-                  className="btn-nav btn-nav-danger btn-nav-logout" 
-                  onClick={logout}
-                  title="Déconnexion"
-                  aria-label="Déconnexion"
-                >
-                  <span className="btn-icon-mobile">🚪</span>
-                  <span className="btn-label">Déconnexion</span>
-                </button>
+                <div className="navbar-user-menu">
+                  <button 
+                    className="btn-nav btn-nav-icon btn-nav-user-menu"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    title="Menu utilisateur"
+                    aria-label="Menu utilisateur"
+                  >
+                    <span>⚙️</span>
+                  </button>
+                  {showUserMenu && (
+                    <>
+                      <div className="user-menu-overlay" onClick={() => setShowUserMenu(false)}></div>
+                      <div className="user-menu-dropdown">
+                      <button 
+                        className={`user-menu-item ${notificationsEnabled ? 'active' : ''}`}
+                        onClick={() => {
+                          setShowNotificationModal(true)
+                          setShowUserMenu(false)
+                        }}
+                      >
+                        <span className="user-menu-icon">🔔</span>
+                        <span className="user-menu-label">Notifications</span>
+                      </button>
+                      <button 
+                        className="user-menu-item"
+                        onClick={() => {
+                          setDarkMode(!darkMode)
+                          setShowUserMenu(false)
+                        }}
+                      >
+                        <span className="user-menu-icon">{darkMode ? '☀️' : '🌙'}</span>
+                        <span className="user-menu-label">{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
+                      </button>
+                      <div className="user-menu-divider"></div>
+                      <button 
+                        className="user-menu-item user-menu-item-danger"
+                        onClick={() => {
+                          logout()
+                          setShowUserMenu(false)
+                        }}
+                      >
+                        <span className="user-menu-icon">🚪</span>
+                        <span className="user-menu-label">Déconnexion</span>
+                      </button>
+                    </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </nav>
@@ -912,17 +1137,23 @@ export default function TaskflowPage() {
                     {task.description && (
                       <p className="task-description">{task.description}</p>
                     )}
-                    {task.due_date && (
-                      <div className="task-due-date">
-                        📅 À faire: {new Date(task.due_date).toLocaleString('fr-FR', { 
-                          day: 'numeric', 
-                          month: 'short', 
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -992,6 +1223,26 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
+                    {task.description && (
+                      <p className="task-description">{task.description}</p>
+                    )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -1061,6 +1312,26 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
+                    {task.description && (
+                      <p className="task-description">{task.description}</p>
+                    )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -1130,11 +1401,31 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
+                    {task.description && (
+                      <p className="task-description">{task.description}</p>
+                    )}
                     {task.blocked_reason && (
                       <div className="task-blocked-reason">
                         <strong>Blocage:</strong> {task.blocked_reason}
                       </div>
                     )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -1204,6 +1495,26 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
+                    {task.description && (
+                      <p className="task-description">{task.description}</p>
+                    )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -1273,6 +1584,26 @@ export default function TaskflowPage() {
                         <span className="task-trello">🔗 {task.trello_id}</span>
                       )}
                     </div>
+                    {task.description && (
+                      <p className="task-description">{task.description}</p>
+                    )}
+                    {(() => {
+                      const dateInfo = getTaskDateInfo(task)
+                      if (dateInfo && dateInfo.date) {
+                        return (
+                          <div className="task-due-date">
+                            {dateInfo.icon} {dateInfo.label}: {dateInfo.date.toLocaleString('fr-FR', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <div className="task-badges">
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
@@ -1431,6 +1762,27 @@ export default function TaskflowPage() {
                   <option value="urgent">Urgente</option>
                 </select>
               </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Projet (optionnel)</label>
+                <input
+                  type="text"
+                  className="form-input-modern"
+                  value={newTask.project}
+                  onChange={(e) => setNewTask({...newTask, project: e.target.value})}
+                  placeholder="Ex: TaskFlow, PITER, Général..."
+                />
+                <small className="form-hint">Pour quel projet cette tâche est-elle destinée ?</small>
+              </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Date à faire (optionnel)</label>
+                <input
+                  type="datetime-local"
+                  className="form-input-modern"
+                  value={newTask.due_date}
+                  onChange={(e) => setNewTask({...newTask, due_date: e.target.value})}
+                />
+                <small className="form-hint">Vous pouvez définir une date et heure précise, ou seulement la date</small>
+              </div>
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowCreateModal(false)}>
@@ -1542,6 +1894,16 @@ export default function TaskflowPage() {
                 </select>
               </div>
               <div className="form-group-modern">
+                <label className="form-label-modern">Projet (optionnel)</label>
+                <input
+                  type="text"
+                  className="form-input-modern"
+                  value={selectedTask.project || ''}
+                  onChange={(e) => setSelectedTask({...selectedTask, project: e.target.value})}
+                  placeholder="Ex: TaskFlow, PITER, Général..."
+                />
+              </div>
+              <div className="form-group-modern">
                 <label className="form-label-modern">Date à faire (optionnel)</label>
                 <input
                   type="datetime-local"
@@ -1632,6 +1994,9 @@ export default function TaskflowPage() {
               <button 
                 className="btn-auth-primary"
                 onClick={() => {
+                  setWorkflowSteps([''])
+                  setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+                  setEditingWorkflow(null)
                   setShowWorkflowModal(false)
                   setShowCreateWorkflowModal(true)
                 }}
@@ -1645,9 +2010,53 @@ export default function TaskflowPage() {
                     <div key={workflow.id} className="workflow-item">
                       <div className="workflow-header">
                         <h4 className="workflow-name">{workflow.name}</h4>
-                        {workflow.project && (
-                          <span className="workflow-project">📁 {workflow.project}</span>
-                        )}
+                        <div className="workflow-actions">
+                          {workflow.project && (
+                            <span className="workflow-project">📁 {workflow.project}</span>
+                          )}
+                          <button
+                            className="btn-workflow-edit"
+                            onClick={() => {
+                              setEditingWorkflow(workflow)
+                              setNewWorkflow({
+                                name: workflow.name,
+                                steps: workflow.steps,
+                                category: workflow.category,
+                                project: workflow.project || ''
+                              })
+                              setWorkflowSteps(workflow.steps.split('\n').filter(s => s.trim() !== ''))
+                              setShowWorkflowModal(false)
+                              setShowCreateWorkflowModal(true)
+                            }}
+                            title="Modifier"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="btn-workflow-delete"
+                            onClick={async () => {
+                              if (confirm(`Supprimer le workflow "${workflow.name}" ?`)) {
+                                try {
+                                  const response = await fetch(`${API_URL}/workflows/${workflow.id}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                      'Authorization': `Bearer ${token}`
+                                    }
+                                  })
+                                  if (response.ok) {
+                                    fetchWorkflows(token)
+                                    sendNotification('🗑️ Workflow supprimé', `"${workflow.name}" a été supprimé`)
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting workflow:', error)
+                                }
+                              }
+                            }}
+                            title="Supprimer"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                       <p className="workflow-category">Catégorie: {workflow.category}</p>
                       <div className="workflow-steps">
@@ -1671,13 +2080,23 @@ export default function TaskflowPage() {
         </div>
       )}
 
-      {/* Modal Création Workflow */}
+      {/* Modal Création/Modification Workflow */}
       {showCreateWorkflowModal && (
-        <div className="taskflow-modal-overlay" onClick={() => setShowCreateWorkflowModal(false)}>
+        <div className="taskflow-modal-overlay" onClick={() => {
+          setShowCreateWorkflowModal(false)
+          setEditingWorkflow(null)
+          setWorkflowSteps([''])
+          setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+        }}>
           <div className="taskflow-modal" onClick={e => e.stopPropagation()}>
             <div className="taskflow-modal-header">
-              <h3 className="modal-title">➕ Nouveau workflow</h3>
-              <button className="modal-close" onClick={() => setShowCreateWorkflowModal(false)}>×</button>
+              <h3 className="modal-title">{editingWorkflow ? '✏️ Modifier le workflow' : '➕ Nouveau workflow'}</h3>
+              <button className="modal-close" onClick={() => {
+                setShowCreateWorkflowModal(false)
+                setEditingWorkflow(null)
+                setWorkflowSteps([''])
+                setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+              }}>×</button>
             </div>
             <div className="taskflow-modal-body">
               <div className="form-group-modern">
@@ -1718,17 +2137,60 @@ export default function TaskflowPage() {
               </div>
               <div className="form-group-modern">
                 <label className="form-label-modern">Étapes *</label>
-                <textarea
-                  className="form-input-modern"
-                  rows={10}
-                  value={newWorkflow.steps}
-                  onChange={(e) => setNewWorkflow({...newWorkflow, steps: e.target.value})}
-                  placeholder="1. Première étape
-2. Deuxième étape
-3. Troisième étape"
-                  required
-                />
-                <small className="form-hint">Une étape par ligne, numérotée ou non</small>
+                <div className="workflow-steps-list">
+                  {workflowSteps.map((step, index) => (
+                    <div key={index} className="workflow-step-item">
+                      <input
+                        type="text"
+                        className="form-input-modern"
+                        value={step}
+                        onChange={(e) => {
+                          const newSteps = [...workflowSteps]
+                          newSteps[index] = e.target.value
+                          setWorkflowSteps(newSteps)
+                        }}
+                        placeholder={`Étape ${index + 1}...`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            const newSteps = [...workflowSteps]
+                            newSteps.splice(index + 1, 0, '')
+                            setWorkflowSteps(newSteps)
+                            setTimeout(() => {
+                              const nextInput = document.querySelector(`.workflow-step-item:nth-child(${index + 2}) input`) as HTMLInputElement
+                              nextInput?.focus()
+                            }, 0)
+                          } else if (e.key === 'Backspace' && step === '' && workflowSteps.length > 1) {
+                            e.preventDefault()
+                            const newSteps = workflowSteps.filter((_, i) => i !== index)
+                            setWorkflowSteps(newSteps)
+                          }
+                        }}
+                      />
+                      {workflowSteps.length > 1 && (
+                        <button
+                          type="button"
+                          className="btn-remove-step"
+                          onClick={() => {
+                            const newSteps = workflowSteps.filter((_, i) => i !== index)
+                            setWorkflowSteps(newSteps)
+                          }}
+                          title="Supprimer cette étape"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn-add-step"
+                    onClick={() => setWorkflowSteps([...workflowSteps, ''])}
+                  >
+                    ➕ Ajouter une étape
+                  </button>
+                </div>
+                <small className="form-hint">Appuyez sur Entrée pour ajouter une nouvelle étape</small>
               </div>
             </div>
             <div className="taskflow-modal-footer">
@@ -1737,10 +2199,10 @@ export default function TaskflowPage() {
               </button>
               <button 
                 className="btn-auth-primary" 
-                onClick={createWorkflow}
-                disabled={!newWorkflow.name || !newWorkflow.steps}
+                onClick={editingWorkflow ? updateWorkflow : createWorkflow}
+                disabled={!newWorkflow.name || workflowSteps.filter(s => s.trim() !== '').length === 0}
               >
-                Créer
+                {editingWorkflow ? 'Modifier' : 'Créer'}
               </button>
             </div>
           </div>
@@ -1749,8 +2211,8 @@ export default function TaskflowPage() {
 
       {/* Modal Détails Tâche */}
       {showTaskDetailModal && selectedTaskDetail && (
-        <div className="taskflow-modal-overlay" onClick={() => setShowTaskDetailModal(false)}>
-          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+        <div className="taskflow-modal-overlay task-detail-overlay" onClick={() => setShowTaskDetailModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large task-detail-modal" onClick={e => e.stopPropagation()}>
             <div className="taskflow-modal-header">
               <h3 className="modal-title">📋 Détails de la tâche</h3>
               <button className="modal-close" onClick={() => setShowTaskDetailModal(false)}>×</button>
@@ -1814,11 +2276,29 @@ export default function TaskflowPage() {
                   )}
                   {selectedTaskDetail.standby_at && (
                     <div className="task-detail-date">
-                      <strong>En standby depuis:</strong> {new Date(selectedTaskDetail.standby_at).toLocaleString('fr-FR')}
+                      <strong>En standby:</strong> {new Date(selectedTaskDetail.standby_at).toLocaleString('fr-FR')}
                     </div>
                   )}
                 </div>
               </div>
+
+              {(selectedTaskDetail.time_spent_seconds || selectedTaskDetail.time_in_progress_seconds) && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">⏱️ Statistiques de temps</label>
+                  <div className="task-detail-dates">
+                    {selectedTaskDetail.time_in_progress_seconds && selectedTaskDetail.time_in_progress_seconds > 0 && (
+                      <div className="task-detail-date">
+                        <strong>Temps en cours:</strong> {formatTime(selectedTaskDetail.time_in_progress_seconds)}
+                      </div>
+                    )}
+                    {selectedTaskDetail.time_spent_seconds && selectedTaskDetail.time_spent_seconds > 0 && (
+                      <div className="task-detail-date">
+                        <strong>Temps total:</strong> {formatTime(selectedTaskDetail.time_spent_seconds)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="task-detail-section">
                 <label className="task-detail-label">Actions rapides</label>
@@ -2033,6 +2513,186 @@ export default function TaskflowPage() {
           </div>
         </div>
         )}
+
+      {/* Modal Activité Actuelle */}
+      {showCurrentActivityModal && currentActivity && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowCurrentActivityModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">⚡ Activité Actuelle</h3>
+              <button className="modal-close" onClick={() => setShowCurrentActivityModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="task-detail-section">
+                <h4 className="task-detail-label">🔄 Tâches en cours</h4>
+                {currentActivity.in_progress && currentActivity.in_progress.length > 0 ? (
+                  <div className="workflows-list">
+                    {currentActivity.in_progress.map((task: any) => (
+                      <div key={task.id} className="workflow-item">
+                        <div className="workflow-header">
+                          <h4 className="workflow-name">{task.title}</h4>
+                          {task.project && (
+                            <span className="workflow-project">📁 {task.project}</span>
+                          )}
+                        </div>
+                        <div className="workflow-steps">
+                          <p><strong>Priorité:</strong> {task.priority}</p>
+                          {task.started_at && (
+                            <p><strong>Démarrée:</strong> {new Date(task.started_at).toLocaleString('fr-FR')}</p>
+                          )}
+                          {task.time_in_progress_seconds && (
+                            <p><strong>Temps en cours:</strong> {formatTime(task.time_in_progress_seconds)}</p>
+                          )}
+                          {task.current_session_time && (
+                            <p><strong>Session actuelle:</strong> {formatTime(task.current_session_time)}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="task-detail-text">Aucune tâche en cours</p>
+                )}
+              </div>
+
+              {currentActivity.today_completed && (
+                <div className="task-detail-section">
+                  <h4 className="task-detail-label">✅ Terminées aujourd'hui</h4>
+                  <p className="task-detail-text">
+                    <strong>Nombre:</strong> {currentActivity.today_completed.count || 0}
+                  </p>
+                  {currentActivity.today_completed.total_time && (
+                    <p className="task-detail-text">
+                      <strong>Temps total:</strong> {formatTime(currentActivity.today_completed.total_time)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {currentActivity.by_project && currentActivity.by_project.length > 0 && (
+                <div className="task-detail-section">
+                  <h4 className="task-detail-label">📁 Par projet</h4>
+                  <div className="workflows-list">
+                    {currentActivity.by_project.map((proj: any, index: number) => (
+                      <div key={index} className="workflow-item">
+                        <div className="workflow-header">
+                          <h4 className="workflow-name">{proj.project}</h4>
+                          <span className="workflow-project">{proj.count} tâche(s)</span>
+                        </div>
+                        {proj.in_progress_count > 0 && (
+                          <p className="workflow-category">{proj.in_progress_count} en cours</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowCurrentActivityModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Vue par Projet */}
+      {showProjectView && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowProjectView(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">📁 Vue par Projet</h3>
+              <button className="modal-close" onClick={() => setShowProjectView(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="form-group-modern" style={{ marginBottom: 'var(--space-20)' }}>
+                <label className="form-label-modern">Filtrer par projet</label>
+                <select
+                  className="form-input-modern"
+                  value={selectedProject || ''}
+                  onChange={(e) => setSelectedProject(e.target.value || null)}
+                >
+                  <option value="">Tous les projets</option>
+                  {Array.from(new Set(tasks.map(t => t.project).filter(p => p))).map(project => (
+                    <option key={project} value={project}>{project}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {(selectedProject ? tasks.filter(t => t.project === selectedProject) : tasks).length > 0 ? (
+                <div className="taskflow-grid" style={{ display: 'block' }}>
+                  {['in_progress', 'todo', 'blocked', 'standby', 'review', 'done'].map(status => {
+                    const statusTasks = (selectedProject 
+                      ? tasks.filter(t => t.project === selectedProject && t.status === status)
+                      : tasks.filter(t => t.status === status))
+                    if (statusTasks.length === 0) return null
+                    
+                    return (
+                      <div key={status} className="taskflow-column" style={{ marginBottom: 'var(--space-24)' }}>
+                        <div className="taskflow-card">
+                          <div className="taskflow-card-header">
+                            <span className="card-icon">
+                              {status === 'in_progress' ? '🔄' : 
+                               status === 'todo' ? '📋' :
+                               status === 'blocked' ? '🚫' :
+                               status === 'standby' ? '⏸️' :
+                               status === 'review' ? '⏳' : '✅'}
+                            </span>
+                            <h3 className="card-title">
+                              {status === 'in_progress' ? 'En cours' :
+                               status === 'todo' ? 'À faire' :
+                               status === 'blocked' ? 'Bloqué' :
+                               status === 'standby' ? 'Standby' :
+                               status === 'review' ? 'En Review' : 'Terminé'}
+                            </h3>
+                            <span className="card-count">{statusTasks.length}</span>
+                          </div>
+                          <div className="taskflow-card-body">
+                            {statusTasks.map(task => (
+                              <div 
+                                key={task.id} 
+                                className={`task-item task-item-clickable task-item-status-${task.status}`}
+                                onClick={() => {
+                                  setSelectedTaskDetail(task)
+                                  setShowTaskDetailModal(true)
+                                }}
+                              >
+                                <div className="task-header">
+                                  <h4 className="task-title">{task.title}</h4>
+                                  {task.project && (
+                                    <span className="workflow-project-badge">📁 {task.project}</span>
+                                  )}
+                                </div>
+                                <div className="task-badges">
+                                  {getStatusBadge(task.status)}
+                                  {getPriorityBadge(task.priority)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="taskflow-empty">
+                  <span>{selectedProject ? `Aucune tâche pour le projet "${selectedProject}"` : 'Aucune tâche'}</span>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => {
+                setShowProjectView(false)
+                setSelectedProject(null)
+              }}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </>
   )

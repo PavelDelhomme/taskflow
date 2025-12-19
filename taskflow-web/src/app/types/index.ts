@@ -20,6 +20,9 @@ export interface Task {
   completed_at?: string
   standby_at?: string
   due_date?: string
+  time_spent_seconds?: number
+  time_in_progress_seconds?: number
+  project?: string
 }
 
 export interface Workflow {

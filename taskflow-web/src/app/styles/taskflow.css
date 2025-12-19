@@ -199,6 +199,126 @@
   }
 }
 
+/* User Menu Dropdown */
+.navbar-user-menu {
+  position: relative;
+}
+
+.btn-nav-user-menu {
+  position: relative;
+  z-index: 1001;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-8));
+  right: 0;
+  min-width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-lg);
+  z-index: 1002;
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+.taskflow-app.dark-mode .user-menu-dropdown {
+  background: var(--color-charcoal-800);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.taskflow-app.light-mode .user-menu-dropdown {
+  background: var(--color-cream-100);
+  border-color: rgba(var(--color-brown-600-rgb), 0.15);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  padding: var(--space-12) var(--space-16);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+  text-align: left;
+}
+
+.user-menu-item:hover {
+  background: var(--color-secondary);
+}
+
+.taskflow-app.dark-mode .user-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.taskflow-app.light-mode .user-menu-item:hover {
+  background: rgba(var(--color-brown-600-rgb), 0.08);
+}
+
+.user-menu-item.active {
+  background: var(--color-success);
+  color: var(--color-btn-primary-text);
+}
+
+.user-menu-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.user-menu-label {
+  flex: 1;
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-4) 0;
+}
+
+.taskflow-app.dark-mode .user-menu-divider {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.taskflow-app.light-mode .user-menu-divider {
+  background: rgba(var(--color-brown-600-rgb), 0.15);
+}
+
+.user-menu-item-danger {
+  color: var(--color-error);
+}
+
+.user-menu-item-danger:hover {
+  background: rgba(var(--color-error-rgb, 220, 38, 38), 0.1);
+}
+
+/* Click outside to close dropdown */
+.user-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  background: transparent;
+}
+
 /* Amélioration boutons sur mobile */
 @media (max-width: 768px) {
   .navbar-actions {
@@ -450,4 +570,97 @@
 
 .dark-mode .taskflow-card-body-scrollable::-webkit-scrollbar-thumb:hover {
   background: var(--color-charcoal-500);
+}
+
+/* Workflow Steps List */
+.workflow-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.workflow-step-item {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.workflow-step-item input {
+  flex: 1;
+}
+
+.btn-remove-step {
+  background: var(--color-error);
+  color: var(--color-btn-primary-text);
+  border: none;
+  border-radius: var(--radius-full);
+  width: 32px;
+  height: 32px;
+  font-size: var(--font-size-xl);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast);
+  flex-shrink: 0;
+}
+
+.btn-remove-step:hover {
+  background: var(--color-error-dark);
+  transform: scale(1.1);
+}
+
+.btn-add-step {
+  background: var(--color-success);
+  color: var(--color-btn-primary-text);
+  border: none;
+  border-radius: var(--radius-base);
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  align-self: flex-start;
+}
+
+.btn-add-step:hover {
+  background: var(--color-success-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.workflow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.workflow-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.btn-workflow-edit,
+.btn-workflow-delete {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.btn-workflow-edit:hover {
+  background: var(--color-info);
+  border-color: var(--color-info);
+  color: var(--color-btn-primary-text);
+}
+
+.btn-workflow-delete:hover {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: var(--color-btn-primary-text);
 }

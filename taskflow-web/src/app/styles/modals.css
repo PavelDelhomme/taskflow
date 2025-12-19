@@ -15,6 +15,15 @@
   animation: fade-in var(--duration-normal) var(--ease-standard);
 }
 
+/* Modal de tâche au-dessus du calendrier */
+.taskflow-modal-overlay.task-detail-overlay {
+  z-index: 3000;
+}
+
+.taskflow-modal.task-detail-modal {
+  z-index: 3001;
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }

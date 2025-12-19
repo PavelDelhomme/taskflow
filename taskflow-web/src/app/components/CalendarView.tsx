@@ -21,6 +21,11 @@ export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) 
   const getTasksForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0]
     return tasks.filter(task => {
+      // Tâches avec échéance ce jour (priorité)
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date).toISOString().split('T')[0]
+        if (dueDate === dateStr) return true
+      }
       // Tâches terminées ce jour
       if (task.completed_at) {
         const completedDate = new Date(task.completed_at).toISOString().split('T')[0]
@@ -134,6 +139,9 @@ export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) 
     }
   }
 
+  const today = new Date()
+  const todayStr = today.toDateString()
+
   return (
     <div className="calendar-container">
       <div className="calendar-header">
@@ -160,6 +168,16 @@ export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) 
         <button className="btn-calendar-nav" onClick={prevPeriod}>‹</button>
         <h4 className="calendar-month">{getPeriodTitle()}</h4>
         <button className="btn-calendar-nav" onClick={nextPeriod}>›</button>
+        <button 
+          className="btn-calendar-today"
+          onClick={() => {
+            setCurrentDate(new Date())
+            setSelectedDate(null)
+          }}
+          title="Aujourd'hui"
+        >
+          📅 Aujourd'hui
+        </button>
       </div>
 
       {viewMode === 'month' && (
@@ -216,7 +234,12 @@ export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) 
               <div
                 key={index}
                 className={`calendar-week-day ${isToday ? 'calendar-day-today' : ''} ${isSelected ? 'calendar-day-selected' : ''}`}
-                onClick={() => setSelectedDate(date)}
+                onClick={(e) => {
+                  // Ne sélectionner la date que si on clique directement sur le jour, pas sur une tâche
+                  if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.calendar-week-day-header')) {
+                    setSelectedDate(date)
+                  }
+                }}
               >
                 <div className="calendar-week-day-header">
                   <div className="calendar-week-day-name">{dayNames[date.getDay()]}</div>
@@ -227,15 +250,25 @@ export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) 
                     dayTasks.map(task => (
                       <div
                         key={task.id}
-                        className={`calendar-week-task-item calendar-task-${task.status}`}
+                        className={`calendar-week-task-item calendar-task-${task.status} ${onTaskClick ? 'calendar-task-clickable' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSelectedDate(date)
+                          if (onTaskClick) {
+                            onTaskClick(task)
+                          } else {
+                            setSelectedDate(date)
+                          }
                         }}
                       >
                         <div className="calendar-week-task-title">{task.title}</div>
                         {task.trello_id && (
                           <div className="calendar-week-task-trello">🔗 {task.trello_id}</div>
+                        )}
+                        {task.due_date && (
+                          <div className="calendar-week-task-due-date">
+                            <span className="calendar-date-icon">🗓️</span>
+                            <span>{new Date(task.due_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
                         )}
                       </div>
                     ))

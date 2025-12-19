@@ -239,7 +239,7 @@ export default function TaskflowPage() {
       }
     }
     
-    let interval: NodeJS.Timeout | null = null
+    let interval: ReturnType<typeof setInterval> | null = null
     
     // Vérifier que le token existe et n'est pas vide
     if (savedToken && savedToken.trim() !== '') {

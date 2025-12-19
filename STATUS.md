@@ -106,12 +106,12 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 ## 📈 Progression Globale
 
 **Total des fonctionnalités :** 14  
-**API Terminées :** 7  
-**Frontend Terminées :** 0  
-**En cours :** 1  
-**Progression API :** 50%  
-**Progression Frontend :** 0%  
-**Progression Globale :** 30%
+**API Terminées :** 8  
+**Frontend Terminées :** 8  
+**En cours :** 0  
+**Progression API :** 57%  
+**Progression Frontend :** 57%  
+**Progression Globale :** 57%
 
 ---
 

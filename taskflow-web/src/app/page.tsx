@@ -97,6 +97,48 @@ export default function TaskflowPage() {
   const [availableProjects, setAvailableProjects] = useState<string[]>([])
   const [projectSuggestions, setProjectSuggestions] = useState<string[]>([])
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false)
+  
+  // Time Awareness
+  const [timeComparisonStats, setTimeComparisonStats] = useState<any[]>([])
+  const [showTimeAwarenessModal, setShowTimeAwarenessModal] = useState(false)
+  
+  // Templates
+  const [templates, setTemplates] = useState<any[]>([])
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
+  
+  // Breakdown/Subtasks
+  const [subtasks, setSubtasks] = useState<{[taskId: number]: any[]}>({})
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false)
+  const [taskToBreakdown, setTaskToBreakdown] = useState<Task | null>(null)
+  const [breakdownSteps, setBreakdownSteps] = useState<string[]>([''])
+  
+  // Tags
+  const [tags, setTags] = useState<any[]>([])
+  const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [showTagsModal, setShowTagsModal] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState('#6B7280')
+  
+  // Notes/Brain Dump
+  const [notes, setNotes] = useState<any[]>([])
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [showBrainDumpModal, setShowBrainDumpModal] = useState(false)
+  const [brainDumpContent, setBrainDumpContent] = useState('')
+  
+  // Stats
+  const [dashboardStats, setDashboardStats] = useState<any>(null)
+  const [showStatsModal, setShowStatsModal] = useState(false)
+  
+  // Pauses
+  const [activeBreak, setActiveBreak] = useState<any>(null)
+  const [showBreaksModal, setShowBreaksModal] = useState(false)
+  const [breakType, setBreakType] = useState('short')
+  
+  // Energy
+  const [energyLevel, setEnergyLevel] = useState<number | null>(null)
+  const [showEnergyModal, setShowEnergyModal] = useState(false)
+  const [energyLogs, setEnergyLogs] = useState<any[]>([])
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
 
@@ -196,6 +238,14 @@ export default function TaskflowPage() {
       fetchWorkflows(savedToken)
       checkForReminders(savedToken)
       initNotifications()
+      // Charger les données des nouvelles fonctionnalités
+      fetchTemplates()
+      fetchTags()
+      fetchNotes()
+      fetchDashboardStats()
+      fetchBreaks()
+      fetchEnergyData()
+      fetchTimeComparisonStats()
       
       interval = setInterval(() => {
         const currentToken = localStorage.getItem('token')
@@ -425,6 +475,144 @@ export default function TaskflowPage() {
     }
   }
 
+  // 📊 Time Awareness - Récupérer les statistiques de comparaison
+  const fetchTimeComparisonStats = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/stats/time-comparison`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setTimeComparisonStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching time comparison stats:', error)
+    }
+  }
+
+  // 📋 Templates - Récupérer les templates
+  const fetchTemplates = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/templates`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setTemplates(data)
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error)
+    }
+  }
+
+  // 🔨 Breakdown - Récupérer les sous-tâches
+  const fetchSubtasks = async (taskId: number) => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/subtasks/task/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSubtasks({ ...subtasks, [taskId]: data })
+      }
+    } catch (error) {
+      console.error('Error fetching subtasks:', error)
+    }
+  }
+
+  // 🏷️ Tags - Récupérer les tags
+  const fetchTags = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/tags`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setTags(data)
+      }
+    } catch (error) {
+      console.error('Error fetching tags:', error)
+    }
+  }
+
+  // 📝 Notes - Récupérer les notes
+  const fetchNotes = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/notes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setNotes(data)
+      }
+    } catch (error) {
+      console.error('Error fetching notes:', error)
+    }
+  }
+
+  // 📊 Stats - Récupérer les statistiques du dashboard
+  const fetchDashboardStats = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/stats/dashboard`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setDashboardStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error)
+    }
+  }
+
+  // ☕ Pauses - Récupérer les pauses d'aujourd'hui
+  const fetchBreaks = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_URL}/breaks/today`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const active = data.find((b: any) => b.is_active)
+        if (active) setActiveBreak(active)
+      }
+    } catch (error) {
+      console.error('Error fetching breaks:', error)
+    }
+  }
+
+  // ⚡ Energy - Récupérer le niveau d'énergie actuel et les logs
+  const fetchEnergyData = async () => {
+    if (!token) return
+    try {
+      const [currentResponse, logsResponse] = await Promise.all([
+        fetch(`${API_URL}/energy/current`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/energy/logs?days=7`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+      if (currentResponse.ok) {
+        const current = await currentResponse.json()
+        if (current) setEnergyLevel(current.energy_level)
+      }
+      if (logsResponse.ok) {
+        const logs = await logsResponse.json()
+        setEnergyLogs(logs)
+      }
+    } catch (error) {
+      console.error('Error fetching energy data:', error)
+    }
+  }
+
   const checkForReminders = async (authToken: string) => {
     if (!authToken) return
     
@@ -528,6 +716,14 @@ export default function TaskflowPage() {
         fetchWorkflows(data.access_token)
         checkForReminders(data.access_token)
         initNotifications()
+        // Charger les données des nouvelles fonctionnalités
+        fetchTemplates()
+        fetchTags()
+        fetchNotes()
+        fetchDashboardStats()
+        fetchBreaks()
+        fetchEnergyData()
+        fetchTimeComparisonStats()
       } else {
         const error = await response.json()
         alert('Erreur de connexion: ' + error.detail)
@@ -925,6 +1121,23 @@ export default function TaskflowPage() {
   const getTaskActions = (task: Task) => {
     const actions = []
     
+    // Bouton Décomposer pour toutes les tâches
+    actions.push(
+      <button 
+        key="breakdown" 
+        className="btn-task btn-task-secondary" 
+        onClick={() => {
+          setTaskToBreakdown(task)
+          fetchSubtasks(task.id)
+          setBreakdownSteps([''])
+          setShowBreakdownModal(true)
+        }}
+        title="Décomposer en sous-tâches"
+      >
+        🔨 Décomposer
+      </button>
+    )
+    
     if (task.status === 'todo') {
       actions.push(
         <button key="start" className="btn-task btn-task-primary" onClick={() => handleTaskAction(task, 'start')}>
@@ -1048,6 +1261,83 @@ export default function TaskflowPage() {
                     <span>🗑️</span>
                     <span className="btn-label">Corbeille</span>
                   </button>
+                  <button 
+                    className="btn-nav btn-nav-info" 
+                    onClick={() => {
+                      fetchTimeComparisonStats()
+                      setShowTimeAwarenessModal(true)
+                    }}
+                    title="Time Awareness - Comparaison estimation vs réalité"
+                  >
+                    <span>⏱️</span>
+                    <span className="btn-label">Time</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-success" 
+                    onClick={() => {
+                      fetchTemplates()
+                      setShowTemplatesModal(true)
+                    }}
+                    title="Templates de tâches"
+                  >
+                    <span>📄</span>
+                    <span className="btn-label">Templates</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-warning" 
+                    onClick={() => {
+                      fetchTags()
+                      setShowTagsModal(true)
+                    }}
+                    title="Tags et filtres"
+                  >
+                    <span>🏷️</span>
+                    <span className="btn-label">Tags</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-info" 
+                    onClick={() => {
+                      fetchNotes()
+                      setShowNotesModal(true)
+                    }}
+                    title="Notes et Brain Dump"
+                  >
+                    <span>📝</span>
+                    <span className="btn-label">Notes</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-primary" 
+                    onClick={() => {
+                      fetchDashboardStats()
+                      setShowStatsModal(true)
+                    }}
+                    title="Statistiques motivantes"
+                  >
+                    <span>📊</span>
+                    <span className="btn-label">Stats</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-secondary" 
+                    onClick={() => {
+                      fetchBreaks()
+                      setShowBreaksModal(true)
+                    }}
+                    title="Pauses structurées"
+                  >
+                    <span>☕</span>
+                    <span className="btn-label">Pauses</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-success" 
+                    onClick={() => {
+                      fetchEnergyData()
+                      setShowEnergyModal(true)
+                    }}
+                    title="Energy Level Tracking"
+                  >
+                    <span>⚡</span>
+                    <span className="btn-label">Energy</span>
+                  </button>
                 </div>
                 <div className="navbar-user-menu">
                   <button 
@@ -1141,6 +1431,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1173,6 +1464,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -1230,6 +1526,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1262,6 +1559,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -1319,6 +1621,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1351,6 +1654,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -1408,6 +1716,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1445,6 +1754,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -1502,6 +1816,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1534,6 +1849,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -1591,6 +1911,7 @@ export default function TaskflowPage() {
                 ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
+                    fetchSubtasks(task.id)
                     setShowTaskDetailModal(true)
                   }}>
                     <div className="task-header">
@@ -1623,6 +1944,11 @@ export default function TaskflowPage() {
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
+                    {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                      <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(33, 128, 141, 0.1)', borderRadius: '4px', fontSize: '0.85em' }}>
+                        <strong>Sous-tâches:</strong> {subtasks[task.id].filter((s: any) => s.status === 'done').length}/{subtasks[task.id].length} terminées
+                      </div>
+                    )}
                     <div className="task-actions" onClick={(e) => e.stopPropagation()}>
                       {getTaskActions(task)}
                     </div>
@@ -2516,6 +2842,37 @@ export default function TaskflowPage() {
                 </div>
               )}
 
+              {subtasks[selectedTaskDetail.id] && subtasks[selectedTaskDetail.id].length > 0 && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">🔨 Sous-tâches</label>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {subtasks[selectedTaskDetail.id].map((subtask: any) => (
+                      <div key={subtask.id} style={{
+                        padding: '12px',
+                        marginBottom: '8px',
+                        backgroundColor: 'var(--color-secondary)',
+                        borderRadius: '8px',
+                        border: `1px solid ${subtask.status === 'done' ? 'var(--color-success)' : 'var(--color-border)'}`
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong>{subtask.title}</strong>
+                            {subtask.description && (
+                              <div style={{ fontSize: '0.85em', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                {subtask.description}
+                              </div>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                            {subtask.status === 'done' ? '✅' : '⏳'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="task-detail-section">
                 <label className="task-detail-label">Actions rapides</label>
                 <div className="task-detail-actions">
@@ -2909,6 +3266,781 @@ export default function TaskflowPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Time Awareness */}
+      {showTimeAwarenessModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowTimeAwarenessModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">⏱️ Time Awareness - Estimation vs Réalité</h3>
+              <button className="modal-close" onClick={() => setShowTimeAwarenessModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              {timeComparisonStats.length > 0 ? (
+                <div>
+                  <div className="task-detail-section">
+                    <label className="task-detail-label">📊 Comparaisons récentes</label>
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      {timeComparisonStats.map((stat: any) => {
+                        const diffPercent = stat.difference_minutes ? ((stat.difference_minutes / stat.estimated_minutes) * 100).toFixed(1) : '0'
+                        const isOver = stat.difference_minutes > 0
+                        return (
+                          <div key={stat.task_id} style={{
+                            padding: '12px',
+                            marginBottom: '8px',
+                            borderRadius: '8px',
+                            backgroundColor: isOver ? 'rgba(220, 53, 69, 0.1)' : 'rgba(25, 135, 84, 0.1)',
+                            border: `1px solid ${isOver ? 'rgba(220, 53, 69, 0.3)' : 'rgba(25, 135, 84, 0.3)'}`
+                          }}>
+                            <strong>{stat.title}</strong>
+                            <div style={{ marginTop: '4px', fontSize: '0.9em', color: 'var(--color-text-secondary)' }}>
+                              Estimé: {stat.estimated_minutes}min | Réel: {stat.actual_minutes}min
+                              {stat.difference_minutes && (
+                                <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>
+                                  ({isOver ? '+' : ''}{stat.difference_minutes}min, {isOver ? '+' : ''}{diffPercent}%)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="task-detail-text">Aucune donnée de comparaison disponible. Créez des tâches avec des estimations pour voir les statistiques.</p>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowTimeAwarenessModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Templates */}
+      {showTemplatesModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowTemplatesModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">📄 Templates de tâches</h3>
+              <button className="modal-close" onClick={() => setShowTemplatesModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <button 
+                  className="btn-auth-primary"
+                  onClick={() => {
+                    setSelectedTemplate(null)
+                    setNewTask({
+                      title: '',
+                      description: '',
+                      priority: 'medium',
+                      trello_id: '',
+                      due_date: '',
+                      project: '',
+                      estimated_time_minutes: null
+                    })
+                    setShowTemplatesModal(false)
+                    setShowCreateModal(true)
+                  }}
+                >
+                  ➕ Créer un template
+                </button>
+              </div>
+              {templates.length > 0 ? (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  {templates.map((template: any) => (
+                    <div key={template.id} style={{
+                      padding: '16px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-secondary)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                        <div>
+                          <strong>{template.name}</strong>
+                          {template.is_public && <span style={{ marginLeft: '8px', fontSize: '0.8em', color: 'var(--color-primary)' }}>🌐 Public</span>}
+                        </div>
+                        <button
+                          className="btn-task btn-task-primary"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${API_URL}/templates/${template.id}/create-task`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ project: null })
+                              })
+                              if (response.ok) {
+                                const data = await response.json()
+                                fetchTasks(token)
+                                setShowTemplatesModal(false)
+                                sendNotification('✅ Tâche créée', `Tâche créée depuis le template "${template.name}"`)
+                              }
+                            } catch (error) {
+                              console.error('Error creating task from template:', error)
+                            }
+                          }}
+                        >
+                          Utiliser
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '0.9em', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                        {template.title}
+                      </div>
+                      {template.description && (
+                        <div style={{ fontSize: '0.85em', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                          {template.description}
+                        </div>
+                      )}
+                      {template.estimated_time_minutes && (
+                        <div style={{ fontSize: '0.85em', color: 'var(--color-primary)', marginTop: '4px' }}>
+                          ⏱️ {template.estimated_time_minutes} minutes
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="task-detail-text">Aucun template disponible. Créez-en un pour accélérer la création de tâches récurrentes.</p>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowTemplatesModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Breakdown */}
+      {showBreakdownModal && taskToBreakdown && (
+        <div className="taskflow-modal-overlay" onClick={() => {
+          setShowBreakdownModal(false)
+          setTaskToBreakdown(null)
+          setBreakdownSteps([''])
+        }}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">🔨 Décomposer la tâche</h3>
+              <button className="modal-close" onClick={() => {
+                setShowBreakdownModal(false)
+                setTaskToBreakdown(null)
+                setBreakdownSteps([''])
+              }}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="form-group-modern">
+                <label className="form-label-modern">Tâche à décomposer</label>
+                <p className="task-detail-text">{taskToBreakdown.title}</p>
+              </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">Étapes de décomposition</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {breakdownSteps.map((step, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        className="form-input-modern"
+                        value={step}
+                        onChange={(e) => {
+                          const newSteps = [...breakdownSteps]
+                          newSteps[index] = e.target.value
+                          setBreakdownSteps(newSteps)
+                        }}
+                        placeholder={`Étape ${index + 1}`}
+                        style={{ flex: 1 }}
+                      />
+                      {breakdownSteps.length > 1 && (
+                        <button
+                          className="btn-task btn-task-danger"
+                          onClick={() => {
+                            setBreakdownSteps(breakdownSteps.filter((_, i) => i !== index))
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    className="btn-task btn-task-secondary"
+                    onClick={() => setBreakdownSteps([...breakdownSteps, ''])}
+                  >
+                    ➕ Ajouter une étape
+                  </button>
+                </div>
+              </div>
+              {subtasks[taskToBreakdown.id] && subtasks[taskToBreakdown.id].length > 0 && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">Sous-tâches existantes</label>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {subtasks[taskToBreakdown.id].map((subtask: any) => (
+                      <div key={subtask.id} style={{
+                        padding: '8px',
+                        marginBottom: '4px',
+                        backgroundColor: 'var(--color-secondary)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span>{subtask.title}</span>
+                        <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                          {subtask.status === 'done' ? '✅' : '⏳'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button 
+                className="btn-auth-secondary" 
+                onClick={() => {
+                  setShowBreakdownModal(false)
+                  setTaskToBreakdown(null)
+                  setBreakdownSteps([''])
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className="btn-auth-primary"
+                onClick={async () => {
+                  const steps = breakdownSteps.filter(s => s.trim() !== '')
+                  if (steps.length === 0) {
+                    alert('Veuillez ajouter au moins une étape')
+                    return
+                  }
+                  try {
+                    const response = await fetch(`${API_URL}/subtasks/auto-breakdown/${taskToBreakdown.id}`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ steps })
+                    })
+                    if (response.ok) {
+                      fetchSubtasks(taskToBreakdown.id)
+                      setShowBreakdownModal(false)
+                      setTaskToBreakdown(null)
+                      setBreakdownSteps([''])
+                      sendNotification('✅ Tâche décomposée', `${steps.length} sous-tâches créées`)
+                    }
+                  } catch (error) {
+                    console.error('Error breaking down task:', error)
+                  }
+                }}
+              >
+                Décomposer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tags */}
+      {showTagsModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowTagsModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">🏷️ Tags et Filtres</h3>
+              <button className="modal-close" onClick={() => setShowTagsModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="task-detail-section">
+                <label className="task-detail-label">Créer un nouveau tag</label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <input
+                    type="text"
+                    className="form-input-modern"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    placeholder="Nom du tag"
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="color"
+                    value={newTagColor}
+                    onChange={(e) => setNewTagColor(e.target.value)}
+                    style={{ width: '60px', height: '38px', cursor: 'pointer' }}
+                  />
+                  <button
+                    className="btn-auth-primary"
+                    onClick={async () => {
+                      if (!newTagName.trim()) return
+                      try {
+                        const response = await fetch(`${API_URL}/tags`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ name: newTagName.trim(), color: newTagColor })
+                        })
+                        if (response.ok) {
+                          fetchTags()
+                          setNewTagName('')
+                          setNewTagColor('#6B7280')
+                        }
+                      } catch (error) {
+                        console.error('Error creating tag:', error)
+                      }
+                    }}
+                  >
+                    Créer
+                  </button>
+                </div>
+              </div>
+              <div className="task-detail-section">
+                <label className="task-detail-label">Mes tags</label>
+                {tags.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {tags.map((tag: any) => (
+                      <div
+                        key={tag.id}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          backgroundColor: tag.color + '20',
+                          border: `1px solid ${tag.color}`,
+                          color: tag.color,
+                          fontSize: '0.9em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <span>{tag.name}</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${API_URL}/tags/${tag.id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                              })
+                              if (response.ok) fetchTags()
+                            } catch (error) {
+                              console.error('Error deleting tag:', error)
+                            }
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: tag.color,
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            padding: '0 4px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="task-detail-text">Aucun tag créé. Créez des tags pour organiser vos tâches.</p>
+                )}
+              </div>
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowTagsModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Notes / Brain Dump */}
+      {showNotesModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowNotesModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">📝 Notes et Brain Dump</h3>
+              <button className="modal-close" onClick={() => setShowNotesModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <button
+                  className="btn-auth-primary"
+                  onClick={() => {
+                    setBrainDumpContent('')
+                    setShowNotesModal(false)
+                    setShowBrainDumpModal(true)
+                  }}
+                >
+                  🧠 Nouveau Brain Dump
+                </button>
+              </div>
+              {notes.length > 0 ? (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {notes.map((note: any) => (
+                    <div key={note.id} style={{
+                      padding: '12px',
+                      marginBottom: '8px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-secondary)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                          {new Date(note.created_at).toLocaleString('fr-FR')}
+                          {note.is_brain_dump && <span style={{ marginLeft: '8px', color: 'var(--color-primary)' }}>🧠 Brain Dump</span>}
+                        </span>
+                        {note.is_brain_dump && (
+                          <button
+                            className="btn-task btn-task-primary"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`${API_URL}/notes/${note.id}/convert-to-tasks`, {
+                                  method: 'POST',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                })
+                                if (response.ok) {
+                                  const data = await response.json()
+                                  fetchTasks(token)
+                                  fetchNotes()
+                                  sendNotification('✅ Tâches créées', `${data.count} tâches créées depuis le brain dump`)
+                                }
+                              } catch (error) {
+                                console.error('Error converting note:', error)
+                              }
+                            }}
+                          >
+                            Convertir en tâches
+                          </button>
+                        )}
+                      </div>
+                      <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{note.content}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="task-detail-text">Aucune note. Créez un brain dump pour capturer vos idées rapidement.</p>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowNotesModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Brain Dump */}
+      {showBrainDumpModal && (
+        <div className="taskflow-modal-overlay" onClick={() => {
+          setShowBrainDumpModal(false)
+          setBrainDumpContent('')
+        }}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">🧠 Brain Dump</h3>
+              <button className="modal-close" onClick={() => {
+                setShowBrainDumpModal(false)
+                setBrainDumpContent('')
+              }}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="form-group-modern">
+                <label className="form-label-modern">Capturez vos idées</label>
+                <textarea
+                  className="form-input-modern"
+                  rows={10}
+                  value={brainDumpContent}
+                  onChange={(e) => setBrainDumpContent(e.target.value)}
+                  placeholder="Tapez vos idées ici... (une par ligne, commencez par - ou *)"
+                />
+                <small className="form-hint">Commencez chaque ligne par - ou * pour faciliter la conversion en tâches</small>
+              </div>
+            </div>
+            <div className="taskflow-modal-footer">
+              <button
+                className="btn-auth-secondary"
+                onClick={() => {
+                  setShowBrainDumpModal(false)
+                  setBrainDumpContent('')
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className="btn-auth-primary"
+                onClick={async () => {
+                  if (!brainDumpContent.trim()) return
+                  try {
+                    const response = await fetch(`${API_URL}/notes`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        content: brainDumpContent,
+                        is_brain_dump: true
+                      })
+                    })
+                    if (response.ok) {
+                      fetchNotes()
+                      setShowBrainDumpModal(false)
+                      setBrainDumpContent('')
+                      sendNotification('✅ Brain Dump créé', 'Vous pouvez le convertir en tâches plus tard')
+                    }
+                  } catch (error) {
+                    console.error('Error creating brain dump:', error)
+                  }
+                }}
+              >
+                Sauvegarder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Statistiques */}
+      {showStatsModal && dashboardStats && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowStatsModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">📊 Statistiques Motivantes</h3>
+              <button className="modal-close" onClick={() => setShowStatsModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ padding: '16px', backgroundColor: 'var(--color-success)', borderRadius: '8px', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{dashboardStats.tasks_completed_today}</div>
+                  <div>Tâches terminées aujourd'hui</div>
+                </div>
+                <div style={{ padding: '16px', backgroundColor: 'var(--color-primary)', borderRadius: '8px', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{dashboardStats.tasks_in_progress}</div>
+                  <div>En cours</div>
+                </div>
+                <div style={{ padding: '16px', backgroundColor: 'var(--color-warning)', borderRadius: '8px', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{dashboardStats.streak_days}</div>
+                  <div>Jours consécutifs 🔥</div>
+                </div>
+                <div style={{ padding: '16px', backgroundColor: 'var(--color-info)', borderRadius: '8px', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2em', fontWeight: 'bold' }}>{Math.round(dashboardStats.time_spent_today_minutes / 60)}h</div>
+                  <div>Temps passé aujourd'hui</div>
+                </div>
+              </div>
+              {dashboardStats.time_awareness && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">⏱️ Time Awareness</label>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--color-secondary)', borderRadius: '8px' }}>
+                    <div>Moyenne estimée: {dashboardStats.time_awareness.avg_estimated_minutes}min</div>
+                    <div>Moyenne réelle: {dashboardStats.time_awareness.avg_actual_minutes}min</div>
+                    <div style={{ marginTop: '8px', fontWeight: 'bold' }}>
+                      Tendance: {dashboardStats.time_awareness.tendency} ({dashboardStats.time_awareness.difference_percent > 0 ? '+' : ''}{dashboardStats.time_awareness.difference_percent}%)
+                    </div>
+                  </div>
+                </div>
+              )}
+              {dashboardStats.best_day && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">🏆 Meilleure journée</label>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--color-success)', borderRadius: '8px', color: 'white' }}>
+                    <div>{new Date(dashboardStats.best_day.date).toLocaleDateString('fr-FR')}</div>
+                    <div style={{ fontSize: '1.5em', fontWeight: 'bold' }}>{dashboardStats.best_day.count} tâches terminées</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowStatsModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pauses */}
+      {showBreaksModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowBreaksModal(false)}>
+          <div className="taskflow-modal" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">☕ Pauses Structurées</h3>
+              <button className="modal-close" onClick={() => setShowBreaksModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              {activeBreak ? (
+                <div style={{ padding: '16px', backgroundColor: 'var(--color-warning)', borderRadius: '8px', color: 'white', textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '1.5em', fontWeight: 'bold' }}>Pause en cours</div>
+                  <div>{Math.round(activeBreak.duration_minutes)} minutes</div>
+                  <button
+                    className="btn-auth-primary"
+                    style={{ marginTop: '12px' }}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`${API_URL}/breaks/${activeBreak.id}/end`, {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        })
+                        if (response.ok) {
+                          setActiveBreak(null)
+                          fetchBreaks()
+                          sendNotification('✅ Pause terminée', 'Retour au travail !')
+                        }
+                      } catch (error) {
+                        console.error('Error ending break:', error)
+                      }
+                    }}
+                  >
+                    Terminer la pause
+                  </button>
+                </div>
+              ) : (
+                <div className="form-group-modern">
+                  <label className="form-label-modern">Type de pause</label>
+                  <select
+                    className="form-input-modern"
+                    value={breakType}
+                    onChange={(e) => setBreakType(e.target.value)}
+                  >
+                    <option value="short">Courte (5-10 min)</option>
+                    <option value="long">Longue (15-30 min)</option>
+                    <option value="lunch">Déjeuner</option>
+                  </select>
+                  <button
+                    className="btn-auth-primary"
+                    style={{ marginTop: '12px', width: '100%' }}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`${API_URL}/breaks/start`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ break_type: breakType })
+                        })
+                        if (response.ok) {
+                          const data = await response.json()
+                          setActiveBreak(data)
+                          fetchBreaks()
+                          sendNotification('☕ Pause démarrée', 'Prenez le temps de vous détendre')
+                        }
+                      } catch (error) {
+                        console.error('Error starting break:', error)
+                      }
+                    }}
+                  >
+                    Démarrer une pause
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowBreaksModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Energy */}
+      {showEnergyModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowEnergyModal(false)}>
+          <div className="taskflow-modal" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">⚡ Energy Level Tracking</h3>
+              <button className="modal-close" onClick={() => setShowEnergyModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div className="form-group-modern">
+                <label className="form-label-modern">Niveau d'énergie actuel (1-5)</label>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setEnergyLevel(level)}
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        border: `3px solid ${energyLevel === level ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        backgroundColor: energyLevel === level ? 'var(--color-primary)' : 'var(--color-secondary)',
+                        color: energyLevel === level ? 'white' : 'var(--color-text)',
+                        fontSize: '1.2em',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="btn-auth-primary"
+                  style={{ width: '100%' }}
+                  onClick={async () => {
+                    if (!energyLevel) return
+                    try {
+                      const response = await fetch(`${API_URL}/energy/log`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ energy_level: energyLevel })
+                      })
+                      if (response.ok) {
+                        fetchEnergyData()
+                        sendNotification('⚡ Niveau enregistré', `Niveau d'énergie: ${energyLevel}/5`)
+                      }
+                    } catch (error) {
+                      console.error('Error logging energy:', error)
+                    }
+                  }}
+                  disabled={!energyLevel}
+                >
+                  Enregistrer
+                </button>
+              </div>
+              {energyLogs.length > 0 && (
+                <div className="task-detail-section">
+                  <label className="task-detail-label">Historique (7 derniers jours)</label>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {energyLogs.map((log: any) => (
+                      <div key={log.id} style={{
+                        padding: '8px',
+                        marginBottom: '4px',
+                        backgroundColor: 'var(--color-secondary)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                      }}>
+                        <span>{new Date(log.timestamp).toLocaleString('fr-FR')}</span>
+                        <span style={{ fontWeight: 'bold' }}>Niveau {log.energy_level}/5</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowEnergyModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </>
   )

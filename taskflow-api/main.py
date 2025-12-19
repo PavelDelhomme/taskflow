@@ -7,6 +7,10 @@ from routes.auth import router as auth_router
 from routes.tasks import router as tasks_router
 from routes.workflows import router as workflows_router
 from routes.reports import router as reports_router
+from routes.templates import router as templates_router
+from routes.subtasks import router as subtasks_router
+from routes.tags import router as tags_router
+from routes.notes import router as notes_router
 
 # 🚀 FASTAPI APP
 app = FastAPI(
@@ -30,6 +34,10 @@ app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(workflows_router)
 app.include_router(reports_router)
+app.include_router(templates_router)
+app.include_router(subtasks_router)
+app.include_router(tags_router)
+app.include_router(notes_router)
 
 # 🏥 HEALTH CHECK
 @app.get("/")

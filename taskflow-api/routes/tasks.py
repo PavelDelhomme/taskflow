@@ -17,6 +17,7 @@ class TaskCreate(BaseModel):
     trello_id: Optional[str] = None
     due_date: Optional[datetime] = None
     project: Optional[str] = None
+    estimated_time_minutes: Optional[int] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -27,6 +28,7 @@ class TaskUpdate(BaseModel):
     trello_id: Optional[str] = None
     due_date: Optional[datetime] = None
     project: Optional[str] = None
+    estimated_time_minutes: Optional[int] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -45,6 +47,7 @@ class TaskResponse(BaseModel):
     time_spent_seconds: Optional[int] = 0
     time_in_progress_seconds: Optional[int] = 0
     project: Optional[str] = None
+    estimated_time_minutes: Optional[int] = None
 
 # 📋 ROUTES TASKS
 
@@ -56,8 +59,8 @@ async def create_task(task_data: TaskCreate, current_user = Depends(get_current_
     
     with get_db() as cursor:
         cursor.execute("""
-            INSERT INTO tasks (user_id, title, description, priority, trello_id, due_date, project) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO tasks (user_id, title, description, priority, trello_id, due_date, project, estimated_time_minutes) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING *
         """, (
             user_id,
@@ -66,7 +69,8 @@ async def create_task(task_data: TaskCreate, current_user = Depends(get_current_
             task_data.priority,
             task_data.trello_id,
             task_data.due_date,
-            task_data.project
+            task_data.project,
+            task_data.estimated_time_minutes
         ))
         
         new_task = cursor.fetchone()
@@ -238,6 +242,10 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
         if task_data.project is not None:
             update_fields.append("project = %s")
             params.append(task_data.project)
+        
+        if task_data.estimated_time_minutes is not None:
+            update_fields.append("estimated_time_minutes = %s")
+            params.append(task_data.estimated_time_minutes)
         
         # Toujours mettre à jour updated_at
         update_fields.append("updated_at = CURRENT_TIMESTAMP")

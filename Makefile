@@ -84,6 +84,7 @@ migrate:
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_due_date.sql
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_time_tracking.sql
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_tasks.sql
+	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_tdah_features.sql
 	@echo "✅ Migrations appliquées !"
 
 clean-cache:

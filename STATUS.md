@@ -19,12 +19,12 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Affichage en arborescence (Frontend)
   - [ ] Progression visuelle (X/Y sous-tâches terminées) (Frontend)
 
-- [ ] **Estimation vs Réalité (Time Awareness)** 🔄
-  - [x] Champ estimation de temps lors de la création (API)
-  - [ ] Comparaison avec temps réellement passé (Frontend)
-  - [ ] Graphiques montrant l'écart estimation/réalité (Frontend)
-  - [ ] Apprentissage progressif (Frontend)
-  - [ ] Suggestions d'estimations basées sur l'historique (Frontend)
+- [x] **Estimation vs Réalité (Time Awareness)** ✅
+  - [x] Champ estimation de temps lors de la création (API + Frontend)
+  - [x] Comparaison avec temps réellement passé (Frontend)
+  - [ ] Graphiques montrant l'écart estimation/réalité (À faire - composant graphique)
+  - [ ] Apprentissage progressif (À faire - statistiques globales)
+  - [ ] Suggestions d'estimations basées sur l'historique (À faire - API stats)
 
 - [x] **Système de templates de tâches** ✅
   - [x] Templates pré-configurés
@@ -109,7 +109,7 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 **En cours :** 1  
 **Progression API :** 50%  
 **Progression Frontend :** 0%  
-**Progression Globale :** 25%
+**Progression Globale :** 30%
 
 ---
 

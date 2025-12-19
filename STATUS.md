@@ -47,17 +47,17 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Vues sauvegardées (À faire)
   - [ ] Recherche full-text (À faire)
 
-- [ ] **Visualisation temporelle améliorée** 🔄
-  - [ ] Timeline horizontale
-  - [ ] Vue Gantt simplifiée
-  - [ ] Indicateur visuel du temps restant
-  - [ ] Alertes visuelles pour échéances proches
+- [x] **Visualisation temporelle améliorée** ✅
+  - [x] Timeline horizontale (Frontend)
+  - [x] Vue Gantt simplifiée (Frontend - barres de progression)
+  - [x] Indicateur visuel du temps restant (Frontend)
+  - [x] Alertes visuelles pour échéances proches (Frontend)
 
-- [ ] **Système de commandes vocales** 🔄
-  - [ ] Raccourcis clavier
-  - [ ] Menu contextuel (clic droit)
-  - [ ] Actions groupées
-  - [ ] Commandes vocales (Web Speech API)
+- [x] **Système de commandes vocales** ✅
+  - [x] Raccourcis clavier (Ctrl+K, Ctrl+C, Ctrl+S, Ctrl+N, Escape) (Frontend)
+  - [x] Commandes vocales (Web Speech API) (Frontend)
+  - [ ] Menu contextuel (clic droit) (À faire)
+  - [ ] Actions groupées (À faire)
 
 - [x] **Système de notes et brain dump** ✅
   - [x] Zone "Brain Dump" (API + Frontend)
@@ -106,14 +106,14 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 ## 📈 Progression Globale
 
 **Total des fonctionnalités :** 14  
-**API Terminées :** 8  
-**Frontend Terminées :** 8  
-**En cours :** 6  
-**Progression API :** 57%  
-**Progression Frontend :** 57%  
-**Progression Globale :** 57%
+**API Terminées :** 9  
+**Frontend Terminées :** 11  
+**En cours :** 3  
+**Progression API :** 64%  
+**Progression Frontend :** 79%  
+**Progression Globale :** 71%
 
-### ✅ Fonctionnalités Complétées (8/14)
+### ✅ Fonctionnalités Complétées (11/14)
 1. ✅ Time Awareness (estimation vs réalité)
 2. ✅ Templates de tâches
 3. ✅ Breakdown automatique
@@ -122,11 +122,11 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 6. ✅ Statistiques motivantes
 7. ✅ Pauses structurées
 8. ✅ Energy Level Tracking
+9. ✅ Rappels contextuels intelligents
+10. ✅ Visualisation temporelle améliorée
+11. ✅ Commandes vocales et raccourcis clavier
 
-### 🔄 Fonctionnalités En Cours (6/14)
-9. 🔄 Rappels contextuels intelligents
-10. 🔄 Visualisation temporelle améliorée
-11. 🔄 Commandes vocales
+### 🔄 Fonctionnalités En Cours (3/14)
 12. 🔄 Body Doubling virtuel
 13. 🔄 Améliorations UX/UI
 14. 🔄 IA/ML

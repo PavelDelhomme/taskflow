@@ -1,4 +1,4 @@
-.PHONY: help init build start stop restart up down logs clean status test-data clean-test migrate
+.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache
 
 help:
 	@echo "🎯 TaskFlow ADHD - Commandes Docker"
@@ -7,9 +7,11 @@ help:
 	@echo "  make start   => Lance tous les services (alias: make up)"
 	@echo "  make stop    => Arrête tous les services (alias: make down)"
 	@echo "  make restart => Redémarre tous les services (stop puis start)"
+	@echo "  make restart-logs => Redémarre et affiche les logs"
 	@echo "  make up      => Lance tous les services"
 	@echo "  make down    => Arrête tous les services"
 	@echo "  make logs    => Affiche les logs"
+	@echo "  make clean-cache => Nettoie le cache Next.js (.next)"
 	@echo "  make status  => Affiche le statut des conteneurs TaskFlow"
 	@echo "  make test-data => Génère les données de test (workflows + tâches)"
 	@echo "  make clean-test => Supprime les données de test (conserve l'utilisateur)"
@@ -38,6 +40,10 @@ start: up
 stop: down
 
 restart: down up
+
+restart-logs: down up
+	@sleep 2
+	@docker-compose logs -f
 
 up:
 	docker-compose up -d
@@ -69,6 +75,12 @@ migrate:
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_deleted_at.sql
 	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_workflows.sql
 	@echo "✅ Migrations appliquées !"
+
+clean-cache:
+	@echo "🧹 Nettoyage du cache Next.js..."
+	@sudo rm -rf taskflow-web/.next 2>/dev/null || true
+	@docker exec taskflow-web-paul rm -rf /app/.next 2>/dev/null || true
+	@echo "✅ Cache Next.js nettoyé !"
 
 clean:
 	docker-compose down -v

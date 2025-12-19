@@ -1,0 +1,207 @@
+/* FAB - Floating Action Button */
+.fab-container {
+  position: fixed;
+  bottom: var(--space-24);
+  right: var(--space-24);
+  z-index: 1500;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fab-container {
+    display: block;
+  }
+}
+
+.fab-main {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border: none;
+  box-shadow: var(--shadow-lg), 0 4px 20px rgba(var(--color-primary-rgb, 33, 128, 141), 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-normal) var(--ease-standard);
+  color: var(--color-btn-primary-text);
+  font-size: 24px;
+}
+
+.fab-main:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg), 0 6px 30px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.fab-main.open {
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--color-error), rgba(var(--color-error-rgb, 192, 21, 47), 0.8));
+}
+
+.fab-main-icon {
+  transition: transform var(--duration-normal) var(--ease-standard);
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 80px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  transition: all var(--duration-normal) var(--ease-standard);
+  pointer-events: none;
+}
+
+.fab-container.open .fab-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-20);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+  white-space: nowrap;
+  min-width: 200px;
+  animation: slide-in-right var(--duration-normal) var(--ease-standard);
+  animation-fill-mode: both;
+}
+
+.fab-item:nth-child(1) { animation-delay: 0.05s; }
+.fab-item:nth-child(2) { animation-delay: 0.1s; }
+.fab-item:nth-child(3) { animation-delay: 0.15s; }
+.fab-item:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.fab-item:hover {
+  transform: translateX(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.fab-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.fab-item-primary .fab-icon {
+  background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.15);
+}
+
+.fab-item-success .fab-icon {
+  background: rgba(var(--color-success-rgb, 33, 128, 141), 0.15);
+}
+
+.fab-item-info .fab-icon {
+  background: rgba(var(--color-info-rgb, 98, 108, 113), 0.15);
+}
+
+.fab-item-warning .fab-icon {
+  background: rgba(var(--color-warning-rgb, 168, 75, 47), 0.15);
+}
+
+.fab-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.taskflow-app.dark-mode .fab-item {
+  background: var(--color-charcoal-800);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Modal Large */
+.taskflow-modal-large {
+  max-width: 800px;
+}
+
+/* Workflows */
+.workflows-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.workflow-item {
+  padding: var(--space-20);
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+}
+
+.workflow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.workflow-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  flex: 1;
+}
+
+.workflow-project {
+  padding: var(--space-4) var(--space-10);
+  background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.1);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.workflow-category {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-12) 0;
+}
+
+.workflow-steps {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: var(--space-16);
+}
+
+.workflow-steps pre {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

@@ -1,35 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import 'bootstrap/dist/css/bootstrap.min.css'
-
-interface User {
-  id: number
-  username: string
-  email?: string
-  full_name: string
-}
-
-interface Task {
-  id: number
-  title: string
-  description?: string
-  status: string
-  priority: string
-  blocked_reason?: string
-  trello_id?: string
-  deleted_at?: string
-  created_at: string
-  updated_at: string
-}
-
-interface Workflow {
-  id: number
-  name: string
-  steps: string
-  category: string
-  project?: string
-}
+import AuthPage from './components/AuthPage'
+import CalendarView from './components/CalendarView'
+import { User, Task, Workflow, AuthPageProps } from './types'
 
 export default function TaskflowPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -64,6 +39,22 @@ export default function TaskflowPage() {
   const [confirmAction, setConfirmAction] = useState<{type: string, task: Task, message: string} | null>(null)
   const [showTrashModal, setShowTrashModal] = useState(false)
   const [deletedTasks, setDeletedTasks] = useState<Task[]>([])
+  const [columnStates, setColumnStates] = useState<{[key: string]: boolean}>({
+    in_progress: true,
+    todo: true,
+    standby: true,
+    blocked: true,
+    review: true,
+    done: true
+  })
+  const [showAllTasks, setShowAllTasks] = useState<{[key: string]: boolean}>({
+    in_progress: false,
+    todo: false,
+    standby: false,
+    blocked: false,
+    review: false,
+    done: false
+  })
   const [newWorkflow, setNewWorkflow] = useState({
     name: '',
     steps: '',
@@ -172,6 +163,18 @@ export default function TaskflowPage() {
     document.head.appendChild(style)
 
     const savedToken = localStorage.getItem('token')
+    const storedColumnStates = localStorage.getItem('columnStates')
+    
+    if (storedColumnStates) {
+      try {
+        setColumnStates(JSON.parse(storedColumnStates))
+      } catch (e) {
+        console.error('Error parsing columnStates from localStorage:', e)
+      }
+    }
+    
+    let interval: NodeJS.Timeout | null = null
+    
     if (savedToken) {
       setToken(savedToken)
       setIsLoggedIn(true)
@@ -180,15 +183,18 @@ export default function TaskflowPage() {
       checkForReminders(savedToken)
       initNotifications()
       
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         checkForReminders(savedToken)
       }, 30 * 60 * 1000)
-      
-      return () => clearInterval(interval)
     }
 
     return () => {
-      document.head.removeChild(style)
+      if (interval) {
+        clearInterval(interval)
+      }
+      if (document.head && document.head.contains(style)) {
+        document.head.removeChild(style)
+      }
     }
   }, [])
 
@@ -394,6 +400,37 @@ export default function TaskflowPage() {
     }
   }
 
+  const createWorkflow = async () => {
+    try {
+      const response = await fetch(`${API_URL}/workflows`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newWorkflow.name,
+          steps: newWorkflow.steps,
+          category: newWorkflow.category,
+          project: newWorkflow.project || null
+        })
+      })
+
+      if (response.ok) {
+        setNewWorkflow({ name: '', steps: '', category: 'dev', project: '' })
+        setShowCreateWorkflowModal(false)
+        fetchWorkflows(token)
+        sendNotification('✅ Workflow créé', `"${newWorkflow.name}" a été créé`)
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'Erreur lors de la création du workflow')
+      }
+    } catch (error) {
+      console.error('Error creating workflow:', error)
+      alert('Erreur lors de la création du workflow')
+    }
+  }
+
   const updateTask = async (taskId: number, updates: any) => {
     try {
       const response = await fetch(`${API_URL}/tasks/${taskId}`, {
@@ -573,6 +610,15 @@ export default function TaskflowPage() {
     }
   }
 
+  const toggleColumn = (status: string) => {
+    const newStates = {
+      ...columnStates,
+      [status]: !columnStates[status]
+    }
+    setColumnStates(newStates)
+    localStorage.setItem('columnStates', JSON.stringify(newStates))
+  }
+
   const restoreTask = async (taskId: number) => {
     try {
       const response = await fetch(`${API_URL}/tasks/${taskId}/restore`, {
@@ -667,262 +713,114 @@ export default function TaskflowPage() {
     return actions
   }
 
-  const activeTasks = tasks.filter(t => t.status === 'in_progress')
-  const needsNewTicket = activeTasks.length === 0 && tasks.length > 0
-
+  // Rendu principal du composant
   if (!isLoggedIn) {
     return (
-      <div className={`auth-container ${darkMode ? 'dark' : 'light'}`}>
-        <div className="auth-background">
-          <div className="auth-gradient"></div>
-        </div>
-        <div className="auth-card">
-          <div className="auth-header">
-            <div className="auth-logo">🎯</div>
-            <h1 className="auth-title">TaskFlow ADHD</h1>
-            <p className="auth-subtitle">
-              {!showRegister ? 'Connectez-vous à votre espace' : 'Créez votre compte'}
-            </p>
-          </div>
-
-          {!showRegister ? (
-            <form className="auth-form" onSubmit={(e) => { e.preventDefault(); login(); }}>
-              <div className="form-group-modern">
-                <label className="form-label-modern">Email</label>
-                <input
-                  type="email"
-                  className="form-input-modern"
-                  placeholder="paul@delhomme.ovh"
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-                  onKeyPress={(e) => e.key === 'Enter' && login()}
-                  required
-                />
-              </div>
-              
-              <div className="form-group-modern">
-                <label className="form-label-modern">Mot de passe</label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showLoginPassword ? "text" : "password"}
-                    className="form-input-modern"
-                    placeholder="••••••••"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                    onKeyPress={(e) => e.key === 'Enter' && login()}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-modern"
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    aria-label={showLoginPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                  >
-                    {showLoginPassword ? '🙈' : '👁️'}
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" className="btn-auth-primary">
-                <span>Se connecter</span>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-
-              <div className="auth-divider">
-                <span>ou</span>
-              </div>
-
-              <button 
-                type="button" 
-                className="btn-auth-secondary"
-                onClick={() => setShowRegister(true)}
-              >
-                Créer un compte
-              </button>
-
-              <div className="auth-test-account">
-                <p className="test-account-title">Compte de test</p>
-                <div className="test-account-info">
-                  <span>Email: <code>paul@delhomme.ovh</code></span>
-                  <span>Mot de passe: <code>2H8'Z&sx@QW+X=v,dz[tnsv$F</code></span>
-                </div>
-              </div>
-            </form>
-          ) : (
-            <form className="auth-form" onSubmit={(e) => { e.preventDefault(); register(); }}>
-              <div className="form-group-modern">
-                <label className="form-label-modern">Nom d'utilisateur</label>
-                <input
-                  type="text"
-                  className="form-input-modern"
-                  placeholder="pauld"
-                  value={registerForm.username}
-                  onChange={(e) => setRegisterForm({...registerForm, username: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div className="form-group-modern">
-                <label className="form-label-modern">Email</label>
-                <input
-                  type="email"
-                  className="form-input-modern"
-                  placeholder="votre@email.com"
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div className="form-group-modern">
-                <label className="form-label-modern">Nom complet</label>
-                <input
-                  type="text"
-                  className="form-input-modern"
-                  placeholder="Paul Delhomme"
-                  value={registerForm.full_name}
-                  onChange={(e) => setRegisterForm({...registerForm, full_name: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div className="form-group-modern">
-                <label className="form-label-modern">Mot de passe</label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showRegisterPassword ? "text" : "password"}
-                    className="form-input-modern"
-                    placeholder="••••••••"
-                    value={registerForm.password}
-                    onChange={(e) => setRegisterForm({...registerForm, password: e.target.value})}
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-modern"
-                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
-                    aria-label={showRegisterPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                  >
-                    {showRegisterPassword ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <small className="form-hint">Minimum 6 caractères</small>
-              </div>
-
-              <button type="submit" className="btn-auth-primary">
-                <span>S'inscrire</span>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-
-              <div className="auth-divider">
-                <span>ou</span>
-              </div>
-
-              <button 
-                type="button" 
-                className="btn-auth-secondary"
-                onClick={() => setShowRegister(false)}
-              >
-                Retour à la connexion
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
+      <AuthPage
+        darkMode={darkMode}
+        showRegister={showRegister}
+        setShowRegister={setShowRegister}
+        loginForm={loginForm}
+        setLoginForm={setLoginForm}
+        registerForm={registerForm}
+        setRegisterForm={setRegisterForm}
+        showLoginPassword={showLoginPassword}
+        setShowLoginPassword={setShowLoginPassword}
+        showRegisterPassword={showRegisterPassword}
+        setShowRegisterPassword={setShowRegisterPassword}
+        login={login}
+        register={register}
+      />
     )
   }
 
   return (
-    <div className={`taskflow-app ${darkMode ? 'dark-mode' : 'light-mode'}`}>
-      <nav className="taskflow-navbar">
-        <div className="navbar-content">
-          <div className="navbar-brand-section">
-            <span className="navbar-logo">🎯</span>
-            <span className="navbar-title">TaskFlow ADHD</span>
-            <span className="navbar-user">{user?.full_name}</span>
-          </div>
-          <div className="navbar-actions">
-            <div className="navbar-actions-desktop">
-              <button 
-                className="btn-nav btn-nav-primary" 
-                onClick={() => setShowCreateModal(true)}
-              >
-                <span>➕</span>
-                <span className="btn-label">Tâche</span>
-              </button>
-              <button 
-                className="btn-nav btn-nav-success" 
-                onClick={fetchDailySummary}
-              >
-                <span>📋</span>
-                <span className="btn-label">Daily</span>
-              </button>
-              <button 
-                className="btn-nav btn-nav-info" 
-                onClick={fetchWeeklySummary}
-              >
-                <span>📊</span>
-                <span className="btn-label">Weekly</span>
-              </button>
-            <button 
-              className="btn-nav btn-nav-warning" 
-              onClick={() => setShowWorkflowModal(true)}
-            >
-              <span>📋</span>
-              <span className="btn-label">Workflows</span>
-            </button>
-            <button 
-              className="btn-nav btn-nav-info" 
-              onClick={() => setShowCalendarModal(true)}
-            >
-              <span>📅</span>
-              <span className="btn-label">Calendrier</span>
-            </button>
-            <button 
-              className="btn-nav btn-nav-secondary" 
-              onClick={() => {
-                fetchDeletedTasks()
-                setShowTrashModal(true)
-              }}
-            >
-              <span>🗑️</span>
-              <span className="btn-label">Corbeille</span>
-            </button>
+    <>
+      <div className={`taskflow-app ${darkMode ? 'dark-mode' : 'light-mode'}`}>
+        <nav className="taskflow-navbar">
+            <div className="navbar-content">
+              <div className="navbar-brand-section">
+                <span className="navbar-logo">🎯</span>
+                <span className="navbar-title">TaskFlow ADHD</span>
+                <span className="navbar-user">{user?.full_name}</span>
+              </div>
+              <div className="navbar-actions">
+                <div className="navbar-actions-desktop">
+                  <button 
+                    className="btn-nav btn-nav-primary" 
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <span>➕</span>
+                    <span className="btn-label">Tâche</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-success" 
+                    onClick={fetchDailySummary}
+                  >
+                    <span>📋</span>
+                    <span className="btn-label">Daily</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-info" 
+                    onClick={fetchWeeklySummary}
+                  >
+                    <span>📊</span>
+                    <span className="btn-label">Weekly</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-warning" 
+                    onClick={() => setShowWorkflowModal(true)}
+                  >
+                    <span>📋</span>
+                    <span className="btn-label">Workflows</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-info" 
+                    onClick={() => setShowCalendarModal(true)}
+                  >
+                    <span>📅</span>
+                    <span className="btn-label">Calendrier</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-secondary" 
+                    onClick={() => {
+                      fetchDeletedTasks()
+                      setShowTrashModal(true)
+                    }}
+                  >
+                    <span>🗑️</span>
+                    <span className="btn-label">Corbeille</span>
+                  </button>
+                </div>
+                <button 
+                  className={`btn-nav btn-nav-icon ${notificationsEnabled ? 'active' : ''}`} 
+                  onClick={() => setShowNotificationModal(true)}
+                  title="Notifications"
+                >
+                  🔔
+                </button>
+                <button 
+                  className="btn-nav btn-nav-icon" 
+                  onClick={() => setDarkMode(!darkMode)}
+                  title={darkMode ? 'Mode clair' : 'Mode sombre'}
+                  aria-label={darkMode ? 'Mode clair' : 'Mode sombre'}
+                >
+                  {darkMode ? '☀️' : '🌙'}
+                </button>
+                <button 
+                  className="btn-nav btn-nav-danger btn-nav-logout" 
+                  onClick={logout}
+                  title="Déconnexion"
+                  aria-label="Déconnexion"
+                >
+                  <span className="btn-icon-mobile">🚪</span>
+                  <span className="btn-label">Déconnexion</span>
+                </button>
+              </div>
             </div>
-            <button 
-              className={`btn-nav btn-nav-icon ${notificationsEnabled ? 'active' : ''}`} 
-              onClick={() => setShowNotificationModal(true)}
-              title="Notifications"
-            >
-              🔔
-            </button>
-            <button 
-              className="btn-nav btn-nav-icon" 
-              onClick={() => setDarkMode(!darkMode)}
-              title={darkMode ? 'Mode clair' : 'Mode sombre'}
-              aria-label={darkMode ? 'Mode clair' : 'Mode sombre'}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-            <button 
-              className="btn-nav btn-nav-danger btn-nav-logout" 
-              onClick={logout}
-              title="Déconnexion"
-              aria-label="Déconnexion"
-            >
-              <span className="btn-icon-mobile">🚪</span>
-              <span className="btn-label">Déconnexion</span>
-            </button>
-          </div>
-        </div>
-      </nav>
+          </nav>
 
-      {needsNewTicket && (
+      {tasks.filter(t => t.status === 'in_progress').length === 0 && tasks.length > 0 && (
         <div className="taskflow-alert taskflow-alert-warning">
           <div className="alert-content">
             <span className="alert-icon">⚠️</span>
@@ -944,13 +842,22 @@ export default function TaskflowPage() {
         <div className="taskflow-grid">
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-primary">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('in_progress')}
+                title={columnStates.in_progress ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.in_progress ? '▼' : '▶'}</span>
                 <span className="card-icon">🔄</span>
                 <h3 className="card-title">En cours</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'in_progress').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'in_progress').map(task => (
+              {columnStates.in_progress && (
+                <div className="taskflow-card-body">
+                {(showAllTasks.in_progress 
+                  ? tasks.filter(t => t.status === 'in_progress')
+                  : tasks.filter(t => t.status === 'in_progress').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -973,24 +880,56 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
+                {tasks.filter(t => t.status === 'in_progress').length > 3 && !showAllTasks.in_progress && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, in_progress: true})
+                    }}
+                  >
+                    ... et {tasks.filter(t => t.status === 'in_progress').length - 3} autres
+                  </div>
+                )}
+                {tasks.filter(t => t.status === 'in_progress').length > 3 && showAllTasks.in_progress && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, in_progress: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
+                )}
                 {tasks.filter(t => t.status === 'in_progress').length === 0 && (
                   <div className="taskflow-empty">
                     <span>Aucune tâche en cours</span>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-secondary">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('todo')}
+                title={columnStates.todo ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.todo ? '▼' : '▶'}</span>
                 <span className="card-icon">📋</span>
                 <h3 className="card-title">À faire</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'todo').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'todo').slice(0, 5).map(task => (
+              {columnStates.todo && (
+                <div className="taskflow-card-body taskflow-card-body-scrollable">
+                {(showAllTasks.todo 
+                  ? tasks.filter(t => t.status === 'todo')
+                  : tasks.filter(t => t.status === 'todo').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -1010,24 +949,56 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
-                {tasks.filter(t => t.status === 'todo').length > 5 && (
-                  <div className="taskflow-more">
-                    ... et {tasks.filter(t => t.status === 'todo').length - 5} autres
+                {tasks.filter(t => t.status === 'todo').length > 3 && !showAllTasks.todo && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, todo: true})
+                    }}
+                  >
+                    ... et {tasks.filter(t => t.status === 'todo').length - 3} autres
+                  </div>
+                )}
+                {tasks.filter(t => t.status === 'todo').length > 3 && showAllTasks.todo && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, todo: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
+                )}
+                {tasks.filter(t => t.status === 'todo').length === 0 && (
+                  <div className="taskflow-empty">
+                    <span>Aucune tâche à faire</span>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-warning">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('standby')}
+                title={columnStates.standby ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.standby ? '▼' : '▶'}</span>
                 <span className="card-icon">⏸️</span>
                 <h3 className="card-title">Standby</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'standby').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'standby').map(task => (
+              {columnStates.standby && (
+                <div className="taskflow-card-body">
+                {(showAllTasks.standby 
+                  ? tasks.filter(t => t.status === 'standby')
+                  : tasks.filter(t => t.status === 'standby').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -1047,24 +1018,56 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
+                {tasks.filter(t => t.status === 'standby').length > 3 && !showAllTasks.standby && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, standby: true})
+                    }}
+                  >
+                    ... et {tasks.filter(t => t.status === 'standby').length - 3} autres
+                  </div>
+                )}
+                {tasks.filter(t => t.status === 'standby').length > 3 && showAllTasks.standby && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, standby: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
+                )}
                 {tasks.filter(t => t.status === 'standby').length === 0 && (
                   <div className="taskflow-empty">
                     <span>Aucune tâche en standby</span>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-danger">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('blocked')}
+                title={columnStates.blocked ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.blocked ? '▼' : '▶'}</span>
                 <span className="card-icon">🚫</span>
                 <h3 className="card-title">Bloqué</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'blocked').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'blocked').map(task => (
+              {columnStates.blocked && (
+                <div className="taskflow-card-body">
+                {(showAllTasks.blocked 
+                  ? tasks.filter(t => t.status === 'blocked')
+                  : tasks.filter(t => t.status === 'blocked').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -1089,24 +1092,56 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
+                {tasks.filter(t => t.status === 'blocked').length > 3 && !showAllTasks.blocked && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, blocked: true})
+                    }}
+                  >
+                    ... et {tasks.filter(t => t.status === 'blocked').length - 3} autres
+                  </div>
+                )}
+                {tasks.filter(t => t.status === 'blocked').length > 3 && showAllTasks.blocked && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, blocked: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
+                )}
                 {tasks.filter(t => t.status === 'blocked').length === 0 && (
                   <div className="taskflow-empty">
                     <span>Aucune tâche bloquée</span>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-info">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('review')}
+                title={columnStates.review ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.review ? '▼' : '▶'}</span>
                 <span className="card-icon">⏳</span>
                 <h3 className="card-title">En Review</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'review').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'review').map(task => (
+              {columnStates.review && (
+                <div className="taskflow-card-body">
+                {(showAllTasks.review 
+                  ? tasks.filter(t => t.status === 'review')
+                  : tasks.filter(t => t.status === 'review').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -1126,24 +1161,56 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
+                {tasks.filter(t => t.status === 'review').length > 3 && !showAllTasks.review && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, review: true})
+                    }}
+                  >
+                    ... et {tasks.filter(t => t.status === 'review').length - 3} autres
+                  </div>
+                )}
+                {tasks.filter(t => t.status === 'review').length > 3 && showAllTasks.review && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, review: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
+                )}
                 {tasks.filter(t => t.status === 'review').length === 0 && (
                   <div className="taskflow-empty">
                     <span>Aucune tâche en review</span>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
           <div className="taskflow-column">
             <div className="taskflow-card taskflow-card-success">
-              <div className="taskflow-card-header">
+              <div 
+                className="taskflow-card-header taskflow-card-header-clickable"
+                onClick={() => toggleColumn('done')}
+                title={columnStates.done ? 'Réduire' : 'Étendre'}
+              >
+                <span className="card-toggle-icon">{columnStates.done ? '▼' : '▶'}</span>
                 <span className="card-icon">✅</span>
                 <h3 className="card-title">Terminé</h3>
                 <span className="card-count">{tasks.filter(t => t.status === 'done').length}</span>
               </div>
-              <div className="taskflow-card-body">
-                {tasks.filter(t => t.status === 'done').slice(0, 3).map(task => (
+              {columnStates.done && (
+                <div className="taskflow-card-body">
+                {(showAllTasks.done 
+                  ? tasks.filter(t => t.status === 'done')
+                  : tasks.filter(t => t.status === 'done').slice(0, 3)
+                ).map(task => (
                   <div key={task.id} className={`task-item task-item-clickable task-item-status-${task.status}`} onClick={() => {
                     setSelectedTaskDetail(task)
                     setShowTaskDetailModal(true)
@@ -1163,10 +1230,27 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 ))}
-                {tasks.filter(t => t.status === 'done').length > 3 && (
-                  <div className="taskflow-more">
+                {tasks.filter(t => t.status === 'done').length > 3 && !showAllTasks.done && (
+                  <div 
+                    className="taskflow-more taskflow-more-clickable"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, done: true})
+                    }}
+                  >
                     ... et {tasks.filter(t => t.status === 'done').length - 3} autres
                   </div>
+                )}
+                {tasks.filter(t => t.status === 'done').length > 3 && showAllTasks.done && (
+                  <button 
+                    className="btn-taskflow-more"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowAllTasks({...showAllTasks, done: false})
+                    }}
+                  >
+                    Voir moins
+                  </button>
                 )}
                 {tasks.filter(t => t.status === 'done').length === 0 && (
                   <div className="taskflow-empty">
@@ -1174,6 +1258,7 @@ export default function TaskflowPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -1878,201 +1963,10 @@ export default function TaskflowPage() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   )
 }
 
-// Composant Calendrier
-function CalendarView({ tasks }: { tasks: Task[] }) {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-
-  const month = currentDate.getMonth()
-  const year = currentDate.getFullYear()
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  const getTasksForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0]
-    return tasks.filter(task => {
-      // Tâches terminées ce jour
-      if (task.completed_at) {
-        const completedDate = new Date(task.completed_at).toISOString().split('T')[0]
-        if (completedDate === dateStr) return true
-      }
-      // Tâches créées ce jour
-      if (task.created_at) {
-        const createdDate = new Date(task.created_at).toISOString().split('T')[0]
-        if (createdDate === dateStr) return true
-      }
-      // Tâches démarrées ce jour
-      if (task.started_at) {
-        const startedDate = new Date(task.started_at).toISOString().split('T')[0]
-        if (startedDate === dateStr) return true
-      }
-      // Tâches mises en standby ce jour
-      if (task.standby_at) {
-        const standbyDate = new Date(task.standby_at).toISOString().split('T')[0]
-        if (standbyDate === dateStr) return true
-      }
-      return false
-    })
-  }
-
-  const getDaysArray = () => {
-    const days = []
-    // Jours du mois précédent
-    const prevMonthDays = new Date(year, month, 0).getDate()
-    for (let i = firstDay - 1; i >= 0; i--) {
-      days.push({
-        date: new Date(year, month - 1, prevMonthDays - i),
-        isCurrentMonth: false
-      })
-    }
-    // Jours du mois actuel
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        date: new Date(year, month, i),
-        isCurrentMonth: true
-      })
-    }
-    // Jours du mois suivant pour compléter la grille
-    const remainingDays = 42 - days.length
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push({
-        date: new Date(year, month + 1, i),
-        isCurrentMonth: false
-      })
-    }
-    return days
-  }
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1))
-  }
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1))
-  }
-
-  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-
-  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : []
-
-  return (
-    <div className="calendar-container">
-      <div className="calendar-header">
-        <button className="btn-calendar-nav" onClick={prevMonth}>‹</button>
-        <h4 className="calendar-month">{monthNames[month]} {year}</h4>
-        <button className="btn-calendar-nav" onClick={nextMonth}>›</button>
-      </div>
-      
-      <div className="calendar-grid">
-        {dayNames.map(day => (
-          <div key={day} className="calendar-day-header">{day}</div>
-        ))}
-        {getDaysArray().map((dayObj, index) => {
-          const dayTasks = getTasksForDate(dayObj.date)
-          const isToday = dayObj.date.toDateString() === new Date().toDateString()
-          const isSelected = selectedDate && dayObj.date.toDateString() === selectedDate.toDateString()
-          
-          return (
-            <div
-              key={index}
-              className={`calendar-day ${!dayObj.isCurrentMonth ? 'calendar-day-other-month' : ''} ${isToday ? 'calendar-day-today' : ''} ${isSelected ? 'calendar-day-selected' : ''}`}
-              onClick={() => setSelectedDate(dayObj.date)}
-            >
-              <div className="calendar-day-number">{dayObj.date.getDate()}</div>
-              {dayTasks.length > 0 && (
-                <div className="calendar-day-tasks">
-                  {dayTasks.slice(0, 3).map(task => (
-                    <div
-                      key={task.id}
-                      className={`calendar-task-dot calendar-task-${task.status}`}
-                      title={task.title}
-                    />
-                  ))}
-                  {dayTasks.length > 3 && (
-                    <div className="calendar-task-more">+{dayTasks.length - 3}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {selectedDate && (
-        <div className="calendar-selected-date">
-          <h5 className="calendar-selected-title">
-            Tâches du {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </h5>
-          {selectedDateTasks.length > 0 ? (
-            <div className="calendar-tasks-list">
-              {selectedDateTasks.map(task => {
-                const dateStr = selectedDate.toISOString().split('T')[0]
-                const isCompleted = task.completed_at && new Date(task.completed_at).toISOString().split('T')[0] === dateStr
-                const isCreated = task.created_at && new Date(task.created_at).toISOString().split('T')[0] === dateStr
-                const isStarted = task.started_at && new Date(task.started_at).toISOString().split('T')[0] === dateStr
-                const isStandby = task.standby_at && new Date(task.standby_at).toISOString().split('T')[0] === dateStr
-                
-                return (
-                  <div key={task.id} className={`calendar-task-item calendar-task-${task.status}`}>
-                    <div className="calendar-task-header">
-                      <div>
-                        <strong>{task.title}</strong>
-                        {task.description && (
-                          <p className="calendar-task-description-small">{task.description}</p>
-                        )}
-                      </div>
-                      <div className="calendar-task-badges">
-                        <span className={`badge badge-${task.status}`}>{task.status}</span>
-                        <span className={`badge badge-priority-${task.priority}`}>{task.priority}</span>
-                      </div>
-                    </div>
-                    <div className="calendar-task-dates">
-                      {isCreated && (
-                        <div className="calendar-task-date-item">
-                          <span className="calendar-date-icon">📅</span>
-                          <span>Créée: {new Date(task.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                      {isStarted && (
-                        <div className="calendar-task-date-item">
-                          <span className="calendar-date-icon">▶️</span>
-                          <span>Démarrée: {new Date(task.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                      {isStandby && (
-                        <div className="calendar-task-date-item">
-                          <span className="calendar-date-icon">⏸️</span>
-                          <span>En standby: {new Date(task.standby_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                      {isCompleted && (
-                        <div className="calendar-task-date-item">
-                          <span className="calendar-date-icon">✅</span>
-                          <span>Terminée: {new Date(task.completed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                      {task.trello_id && (
-                        <div className="calendar-task-date-item">
-                          <span className="calendar-date-icon">🔗</span>
-                          <span>Trello: {task.trello_id}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="calendar-no-tasks">Aucune tâche pour cette date</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+// CalendarView est maintenant importé depuis components/CalendarView.tsx

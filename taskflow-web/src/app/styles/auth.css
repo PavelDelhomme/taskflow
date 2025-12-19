@@ -189,6 +189,58 @@
   z-index: 2002;
 }
 
+/* Correction pour les inputs datetime-local dans les modals */
+.taskflow-modal-body input[type="datetime-local"],
+.taskflow-modal-body input[type="date"],
+.taskflow-modal-body input[type="time"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .taskflow-modal-body input[type="datetime-local"],
+  .taskflow-modal-body input[type="date"],
+  .taskflow-modal-body input[type="time"] {
+    font-size: 16px !important; /* Empêche le zoom automatique sur iOS */
+    padding: var(--space-12) var(--space-16) !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
+  /* S'assurer que le sélecteur de date reste dans le viewport */
+  .taskflow-modal-body input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .taskflow-modal-body input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: var(--space-8);
+    cursor: pointer;
+    z-index: 2;
+    padding: var(--space-4);
+    opacity: 0.7;
+  }
+
+  .taskflow-modal-body input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator,
+  .taskflow-modal-body input[type="date"]:focus::-webkit-calendar-picker-indicator {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .taskflow-modal-body input[type="datetime-local"],
+  .taskflow-modal-body input[type="date"],
+  .taskflow-modal-body input[type="time"] {
+    font-size: 16px !important;
+    padding: var(--space-10) var(--space-12) !important;
+  }
+}
+
 .auth-container.dark .form-input-modern {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.1);
@@ -390,6 +442,21 @@
   .auth-card {
     padding: var(--space-24) !important;
     max-width: 100% !important;
+  }
+
+  .form-group-modern {
+    margin-bottom: var(--space-16);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .form-group-modern input[type="datetime-local"],
+  .form-group-modern input[type="date"],
+  .form-group-modern input[type="time"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
   }
 
   .auth-title {

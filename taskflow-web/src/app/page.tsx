@@ -139,6 +139,17 @@ export default function TaskflowPage() {
   const [energyLevel, setEnergyLevel] = useState<number | null>(null)
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [energyLogs, setEnergyLogs] = useState<any[]>([])
+  
+  // Rappels
+  const [pendingReminders, setPendingReminders] = useState<any[]>([])
+  const [showRemindersModal, setShowRemindersModal] = useState(false)
+  
+  // Visualisation temporelle
+  const [showTimelineModal, setShowTimelineModal] = useState(false)
+  
+  // Commandes vocales
+  const [voiceCommandsEnabled, setVoiceCommandsEnabled] = useState(false)
+  const [recognition, setRecognition] = useState<any>(null)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
 
@@ -246,6 +257,19 @@ export default function TaskflowPage() {
       fetchBreaks()
       fetchEnergyData()
       fetchTimeComparisonStats()
+      createAutoReminders()
+      fetchPendingReminders()
+      
+      // Vérifier les rappels toutes les minutes
+      const reminderInterval = setInterval(() => {
+        if (token) {
+          fetchPendingReminders()
+        }
+      }, 60000)
+      
+      return () => {
+        if (reminderInterval) clearInterval(reminderInterval)
+      }
       
       interval = setInterval(() => {
         const currentToken = localStorage.getItem('token')
@@ -273,6 +297,97 @@ export default function TaskflowPage() {
       }
     }
   }, [])
+
+  // 🎤 Initialiser les commandes vocales
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'fr-FR'
+      
+      recognition.onresult = (event: any) => {
+        const command = event.results[0][0].transcript.toLowerCase()
+        handleVoiceCommand(command)
+      }
+      
+      setRecognition(recognition)
+    }
+  }, [])
+
+  // 🎤 Gestion des commandes vocales
+  const handleVoiceCommand = (command: string) => {
+    if (command.includes('créer') || command.includes('nouvelle tâche')) {
+      setShowCreateModal(true)
+    } else if (command.includes('calendrier')) {
+      setShowCalendarModal(true)
+    } else if (command.includes('statistiques') || command.includes('stats')) {
+      fetchDashboardStats()
+      setShowStatsModal(true)
+    } else if (command.includes('pause')) {
+      fetchBreaks()
+      setShowBreaksModal(true)
+    } else if (command.includes('notes') || command.includes('brain dump')) {
+      setShowNotesModal(true)
+    } else if (command.includes('templates')) {
+      fetchTemplates()
+      setShowTemplatesModal(true)
+    }
+  }
+
+  // ⌨️ Raccourcis clavier
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K pour créer une tâche
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCreateModal(true)
+      }
+      // Ctrl/Cmd + C pour calendrier
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
+        e.preventDefault()
+        setShowCalendarModal(true)
+      }
+      // Ctrl/Cmd + S pour stats
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+        e.preventDefault()
+        fetchDashboardStats()
+        setShowStatsModal(true)
+      }
+      // Ctrl/Cmd + N pour notes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
+        e.preventDefault()
+        setShowNotesModal(true)
+      }
+      // Ctrl/Cmd + Shift + V pour commandes vocales
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
+        e.preventDefault()
+        if (recognition) {
+          recognition.start()
+          sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+        }
+      }
+      // Escape pour fermer les modals
+      if (e.key === 'Escape') {
+        setShowCreateModal(false)
+        setShowEditModal(false)
+        setShowTaskDetailModal(false)
+        setShowCalendarModal(false)
+        setShowTemplatesModal(false)
+        setShowTagsModal(false)
+        setShowNotesModal(false)
+        setShowStatsModal(false)
+        setShowBreaksModal(false)
+        setShowEnergyModal(false)
+        setShowRemindersModal(false)
+        setShowTimelineModal(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [recognition])
 
   // ⏱️ Time tracking continu pour les tâches en cours
   useEffect(() => {
@@ -1216,9 +1331,25 @@ export default function TaskflowPage() {
               </div>
               <div className="navbar-actions">
                 <div className="navbar-actions-desktop">
+                  {recognition && (
+                    <button
+                      className="btn-nav btn-nav-secondary"
+                      onClick={() => {
+                        if (recognition) {
+                          recognition.start()
+                          sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+                        }
+                      }}
+                      title="Commandes vocales (Ctrl+Shift+V)"
+                    >
+                      <span>🎤</span>
+                      <span className="btn-label">Voix</span>
+                    </button>
+                  )}
                   <button 
                     className="btn-nav btn-nav-primary" 
                     onClick={() => setShowCreateModal(true)}
+                    title="Créer une tâche (Ctrl+K)"
                   >
                     <span>➕</span>
                     <span className="btn-label">Tâche</span>
@@ -1337,6 +1468,25 @@ export default function TaskflowPage() {
                   >
                     <span>⚡</span>
                     <span className="btn-label">Energy</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-warning" 
+                    onClick={() => {
+                      fetchPendingReminders()
+                      setShowRemindersModal(true)
+                    }}
+                    title="Rappels contextuels"
+                  >
+                    <span>🔔</span>
+                    <span className="btn-label">Rappels</span>
+                  </button>
+                  <button 
+                    className="btn-nav btn-nav-info" 
+                    onClick={() => setShowTimelineModal(true)}
+                    title="Visualisation temporelle"
+                  >
+                    <span>📅</span>
+                    <span className="btn-label">Timeline</span>
                   </button>
                 </div>
                 <div className="navbar-user-menu">
@@ -4040,6 +4190,207 @@ export default function TaskflowPage() {
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowEnergyModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rappels */}
+      {showRemindersModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowRemindersModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">🔔 Rappels Contextuels</h3>
+              <button className="modal-close" onClick={() => setShowRemindersModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <button
+                  className="btn-auth-primary"
+                  onClick={async () => {
+                    await createAutoReminders()
+                    fetchPendingReminders()
+                  }}
+                >
+                  🔄 Créer des rappels automatiques
+                </button>
+              </div>
+              {pendingReminders.length > 0 ? (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {pendingReminders.map((reminder: any) => {
+                    const task = tasks.find(t => t.id === reminder.task_id)
+                    return (
+                      <div key={reminder.id} style={{
+                        padding: '12px',
+                        marginBottom: '8px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--color-secondary)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                          <div>
+                            <strong>{reminder.reminder_type === 'due_date' ? '📅 Échéance' : reminder.reminder_type === 'blocked_days' ? '🚫 Tâche bloquée' : '🔔 Rappel'}</strong>
+                            {task && (
+                              <div style={{ marginTop: '4px' }}>{task.title}</div>
+                            )}
+                            <div style={{ fontSize: '0.85em', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                              {new Date(reminder.reminder_time).toLocaleString('fr-FR')}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              className="btn-task btn-task-secondary"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`${API_URL}/reminders/${reminder.id}/snooze?minutes=15`, {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  })
+                                  if (response.ok) {
+                                    fetchPendingReminders()
+                                  }
+                                } catch (error) {
+                                  console.error('Error snoozing reminder:', error)
+                                }
+                              }}
+                            >
+                              ⏰ +15min
+                            </button>
+                            <button
+                              className="btn-task btn-task-danger-outline"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`${API_URL}/reminders/${reminder.id}`, {
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                  })
+                                  if (response.ok) {
+                                    fetchPendingReminders()
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting reminder:', error)
+                                }
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="task-detail-text">Aucun rappel en attente. Les rappels sont créés automatiquement pour les tâches avec échéances.</p>
+              )}
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowRemindersModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Timeline */}
+      {showTimelineModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowTimelineModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">📅 Visualisation Temporelle</h3>
+              <button className="modal-close" onClick={() => setShowTimelineModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <p className="task-detail-text">
+                  Timeline horizontale montrant toutes les tâches avec leurs durées estimées et réelles.
+                </p>
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '12px',
+                maxHeight: '500px',
+                overflowY: 'auto'
+              }}>
+                {tasks.filter(t => t.due_date || t.estimated_time_minutes).map((task) => {
+                  const startDate = task.created_at ? new Date(task.created_at) : new Date()
+                  const dueDate = task.due_date ? new Date(task.due_date) : null
+                  const estimatedMinutes = task.estimated_time_minutes || 60
+                  const actualMinutes = task.time_spent_seconds ? Math.round(task.time_spent_seconds / 60) : null
+                  
+                  return (
+                    <div key={task.id} style={{
+                      padding: '12px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-secondary)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <strong>{task.title}</strong>
+                        <span style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                          {task.status}
+                        </span>
+                      </div>
+                      <div style={{ 
+                        height: '20px', 
+                        backgroundColor: 'var(--color-border)', 
+                        borderRadius: '4px',
+                        position: 'relative',
+                        marginBottom: '4px'
+                      }}>
+                        {dueDate && (
+                          <div style={{
+                            position: 'absolute',
+                            left: '0',
+                            top: '0',
+                            height: '100%',
+                            width: `${Math.min(100, (estimatedMinutes / 480) * 100)}%`,
+                            backgroundColor: task.status === 'done' ? 'var(--color-success)' : 'var(--color-primary)',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.7em',
+                            color: 'white'
+                          }}>
+                            Est: {estimatedMinutes}min
+                          </div>
+                        )}
+                        {actualMinutes && (
+                          <div style={{
+                            position: 'absolute',
+                            left: dueDate ? `${Math.min(100, (estimatedMinutes / 480) * 100)}%` : '0',
+                            top: '0',
+                            height: '100%',
+                            width: `${Math.min(100, (actualMinutes / 480) * 100)}%`,
+                            backgroundColor: 'var(--color-warning)',
+                            borderRadius: '4px',
+                            marginLeft: dueDate ? '2px' : '0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.7em',
+                            color: 'white'
+                          }}>
+                            Réel: {actualMinutes}min
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.8em', color: 'var(--color-text-secondary)' }}>
+                        {dueDate && `Échéance: ${dueDate.toLocaleDateString('fr-FR')}`}
+                        {task.created_at && ` | Créée: ${new Date(task.created_at).toLocaleDateString('fr-FR')}`}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowTimelineModal(false)}>
                 Fermer
               </button>
             </div>

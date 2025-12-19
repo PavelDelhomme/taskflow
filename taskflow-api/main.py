@@ -14,6 +14,7 @@ from routes.notes import router as notes_router
 from routes.stats import router as stats_router
 from routes.energy import router as energy_router
 from routes.breaks import router as breaks_router
+from routes.reminders import router as reminders_router
 
 # 🚀 FASTAPI APP
 app = FastAPI(
@@ -44,6 +45,7 @@ app.include_router(notes_router)
 app.include_router(stats_router)
 app.include_router(energy_router)
 app.include_router(breaks_router)
+app.include_router(reminders_router)
 
 # 🏥 HEALTH CHECK
 @app.get("/")

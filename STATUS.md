@@ -34,7 +34,7 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ### 🟡 Priorité Moyenne
 
-- [ ] **Mode body doubling virtuel**
+- [ ] **Mode body doubling virtuel** 🔄
   - [ ] Indicateur "Qui travaille actuellement ?"
   - [ ] Timer partagé pour sessions de travail
   - [ ] Chat minimal
@@ -47,13 +47,13 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Vues sauvegardées (À faire)
   - [ ] Recherche full-text (À faire)
 
-- [ ] **Visualisation temporelle améliorée**
+- [ ] **Visualisation temporelle améliorée** 🔄
   - [ ] Timeline horizontale
   - [ ] Vue Gantt simplifiée
   - [ ] Indicateur visuel du temps restant
   - [ ] Alertes visuelles pour échéances proches
 
-- [ ] **Système de commandes vocales**
+- [ ] **Système de commandes vocales** 🔄
   - [ ] Raccourcis clavier
   - [ ] Menu contextuel (clic droit)
   - [ ] Actions groupées
@@ -90,14 +90,14 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ### 🟢 Priorité Basse
 
-- [ ] **Améliorations UX/UI**
+- [ ] **Améliorations UX/UI** 🔄
   - [ ] Feedback immédiat (animations de succès)
   - [ ] Sons de confirmation (optionnel)
   - [ ] Accessibilité améliorée (lecteurs d'écran, navigation clavier)
   - [ ] Tailles de police ajustables
   - [ ] Contraste élevé par défaut
 
-- [ ] **IA et Machine Learning**
+- [ ] **IA et Machine Learning** 🔄
   - [ ] Prédiction du temps nécessaire basée sur l'historique
   - [ ] Suggestions intelligentes de tâches à faire maintenant
   - [ ] Détection des patterns de productivité
@@ -108,10 +108,28 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 **Total des fonctionnalités :** 14  
 **API Terminées :** 8  
 **Frontend Terminées :** 8  
-**En cours :** 0  
+**En cours :** 6  
 **Progression API :** 57%  
 **Progression Frontend :** 57%  
 **Progression Globale :** 57%
+
+### ✅ Fonctionnalités Complétées (8/14)
+1. ✅ Time Awareness (estimation vs réalité)
+2. ✅ Templates de tâches
+3. ✅ Breakdown automatique
+4. ✅ Tags et filtres
+5. ✅ Notes/Brain Dump
+6. ✅ Statistiques motivantes
+7. ✅ Pauses structurées
+8. ✅ Energy Level Tracking
+
+### 🔄 Fonctionnalités En Cours (6/14)
+9. 🔄 Rappels contextuels intelligents
+10. 🔄 Visualisation temporelle améliorée
+11. 🔄 Commandes vocales
+12. 🔄 Body Doubling virtuel
+13. 🔄 Améliorations UX/UI
+14. 🔄 IA/ML
 
 ---
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import 'bootstrap/dist/css/bootstrap.min.css'
+import './utils/filterConsoleLogs'
 import AuthPage from './components/AuthPage'
 import CalendarView from './components/CalendarView'
 import { User, Task, Workflow, AuthPageProps } from './types'
@@ -28,6 +29,11 @@ export default function TaskflowPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   const [fabOpen, setFabOpen] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showTaskActions, setShowTaskActions] = useState<{[key: number]: boolean}>({})
+  const [fabCategory, setFabCategory] = useState<string | null>(null)
+  const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const [showSearchResults, setShowSearchResults] = useState(false)
   const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false)
   const [showTaskDetailModal, setShowTaskDetailModal] = useState(false)
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null)
@@ -341,6 +347,19 @@ export default function TaskflowPage() {
       setShowTemplatesModal(true)
     }
   }
+
+  // 🔒 Bloquer le scroll de l'arrière-plan quand le menu mobile est ouvert
+  useEffect(() => {
+    if (showMobileMenu) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showMobileMenu])
 
   // ⌨️ Raccourcis clavier
   useEffect(() => {
@@ -1269,10 +1288,24 @@ export default function TaskflowPage() {
   }
 
   const toggleColumn = (status: string) => {
-    const newStates = {
-      ...columnStates,
-      [status]: !columnStates[status]
+    const isOpening = !columnStates[status]
+    const newStates: {[key: string]: boolean} = {}
+    
+    // Si on ouvre une colonne, fermer toutes les autres
+    if (isOpening) {
+      Object.keys(columnStates).forEach(key => {
+        newStates[key] = key === status
+      })
+    } else {
+      // Si on ferme, garder l'état actuel
+      newStates[status] = false
+      Object.keys(columnStates).forEach(key => {
+        if (key !== status) {
+          newStates[key] = columnStates[key]
+        }
+      })
     }
+    
     setColumnStates(newStates)
     localStorage.setItem('columnStates', JSON.stringify(newStates))
   }
@@ -1323,69 +1356,98 @@ export default function TaskflowPage() {
     </span>
   }
 
+  // Fonction de recherche de tâches
+  const filteredTasks = useMemo(() => {
+    if (!taskSearchQuery.trim()) {
+      return tasks
+    }
+    const query = taskSearchQuery.toLowerCase().trim()
+    return tasks.filter(task => 
+      task.title.toLowerCase().includes(query) ||
+      (task.description && task.description.toLowerCase().includes(query)) ||
+      (task.trello_id && task.trello_id.toLowerCase().includes(query))
+    )
+  }, [tasks, taskSearchQuery])
+
   const getTaskActions = (task: Task) => {
+    const isExpanded = showTaskActions[task.id] || false
     const actions = []
     
-    // Bouton Décomposer pour toutes les tâches SAUF celles terminées
-    if (task.status !== 'done') {
-      actions.push(
-        <button 
-          key="breakdown" 
-          className="btn-task btn-task-secondary" 
-          onClick={() => {
-            setTaskToBreakdown(task)
-            fetchSubtasks(task.id)
-            setBreakdownSteps([''])
-            setShowBreakdownModal(true)
-          }}
-          title="Décomposer en sous-tâches"
-        >
-          🔨 Décomposer
-        </button>
-      )
-    }
-    
-    if (task.status === 'todo') {
-      actions.push(
-        <button key="start" className="btn-task btn-task-primary" onClick={() => handleTaskAction(task, 'start')}>
-          ▶️ Commencer
-        </button>
-      )
-    }
-    
-    if (task.status === 'in_progress') {
-      actions.push(
-        <button key="standby" className="btn-task btn-task-warning" onClick={() => handleTaskAction(task, 'standby')}>
-          ⏸️ Standby
-        </button>,
-        <button key="block" className="btn-task btn-task-danger" onClick={() => handleTaskAction(task, 'block')}>
-          🚫 Bloquer
-        </button>,
-        <button key="review" className="btn-task btn-task-info" onClick={() => handleTaskAction(task, 'review')}>
-          ⏳ Review
-        </button>,
-        <button key="complete" className="btn-task btn-task-success" onClick={() => handleTaskAction(task, 'complete')}>
-          ✅ Terminer
-        </button>
-      )
-    }
-    
-    if (task.status === 'blocked' || task.status === 'done' || task.status === 'standby' || task.status === 'review') {
-      actions.push(
-        <button key="resume" className="btn-task btn-task-primary" onClick={() => handleTaskAction(task, 'resume')}>
-          🔄 Reprendre
-        </button>
-      )
-    }
-    
+    // Bouton toggle pour afficher/masquer les actions
     actions.push(
-      <button key="edit" className="btn-task btn-task-secondary" onClick={() => handleTaskAction(task, 'edit')}>
-        ✏️ Modifier
-      </button>,
-      <button key="delete" className="btn-task btn-task-danger-outline" onClick={() => deleteTask(task.id)}>
-        🗑️ Supprimer
+      <button 
+        key="toggle" 
+        className="btn-task btn-task-toggle" 
+        onClick={() => setShowTaskActions({...showTaskActions, [task.id]: !isExpanded})}
+        title={isExpanded ? "Masquer les actions" : "Afficher les actions"}
+      >
+        {isExpanded ? '▼' : '▶'}
       </button>
     )
+    
+    // Actions détaillées (affichées seulement si expanded)
+    if (isExpanded) {
+      // Bouton Décomposer pour toutes les tâches SAUF celles terminées
+      if (task.status !== 'done') {
+        actions.push(
+          <button 
+            key="breakdown" 
+            className="btn-task btn-task-secondary" 
+            onClick={() => {
+              setTaskToBreakdown(task)
+              fetchSubtasks(task.id)
+              setBreakdownSteps([''])
+              setShowBreakdownModal(true)
+            }}
+            title="Décomposer en sous-tâches"
+          >
+            🔨 Décomposer
+          </button>
+        )
+      }
+      
+      if (task.status === 'todo') {
+        actions.push(
+          <button key="start" className="btn-task btn-task-primary" onClick={() => handleTaskAction(task, 'start')}>
+            ▶️ Commencer
+          </button>
+        )
+      }
+      
+      if (task.status === 'in_progress') {
+        actions.push(
+          <button key="standby" className="btn-task btn-task-warning" onClick={() => handleTaskAction(task, 'standby')}>
+            ⏸️ Standby
+          </button>,
+          <button key="block" className="btn-task btn-task-danger" onClick={() => handleTaskAction(task, 'block')}>
+            🚫 Bloquer
+          </button>,
+          <button key="review" className="btn-task btn-task-info" onClick={() => handleTaskAction(task, 'review')}>
+            ⏳ Review
+          </button>,
+          <button key="complete" className="btn-task btn-task-success" onClick={() => handleTaskAction(task, 'complete')}>
+            ✅ Terminer
+          </button>
+        )
+      }
+      
+      if (task.status === 'blocked' || task.status === 'done' || task.status === 'standby' || task.status === 'review') {
+        actions.push(
+          <button key="resume" className="btn-task btn-task-primary" onClick={() => handleTaskAction(task, 'resume')}>
+            🔄 Reprendre
+          </button>
+        )
+      }
+      
+      actions.push(
+        <button key="edit" className="btn-task btn-task-secondary" onClick={() => handleTaskAction(task, 'edit')}>
+          ✏️ Modifier
+        </button>,
+        <button key="delete" className="btn-task btn-task-danger-outline" onClick={() => deleteTask(task.id)}>
+          🗑️ Supprimer
+        </button>
+      )
+    }
     
     return actions
   }
@@ -1420,180 +1482,518 @@ export default function TaskflowPage() {
                 <span className="navbar-logo">🎯</span>
                 <span className="navbar-title">TaskFlow ADHD</span>
                 <span className="navbar-user">{user?.full_name}</span>
-                </div>
-              <div className="navbar-actions">
-                <div className="navbar-actions-desktop">
-                  {recognition && (
+              </div>
+              
+              {/* Barre de recherche */}
+              <div className="navbar-search">
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="🔍 Rechercher une tâche..."
+                  value={taskSearchQuery}
+                  onChange={(e) => {
+                    setTaskSearchQuery(e.target.value)
+                    setShowSearchResults(e.target.value.trim().length > 0)
+                  }}
+                  onFocus={() => {
+                    if (taskSearchQuery.trim().length > 0) {
+                      setShowSearchResults(true)
+                    }
+                  }}
+                />
+                {taskSearchQuery && (
                   <button
-                      className="btn-nav btn-nav-secondary"
-                      onClick={() => {
-                        if (recognition) {
-                          recognition.start()
-                          sendNotification('🎤 Écoute active', 'Parlez votre commande...')
-                        }
-                      }}
-                      title="Commandes vocales (Ctrl+Shift+V)"
-                    >
-                      <span>🎤</span>
-                      <span className="btn-label">Voix</span>
+                    className="search-clear"
+                    onClick={() => {
+                      setTaskSearchQuery('')
+                      setShowSearchResults(false)
+                    }}
+                    title="Effacer la recherche"
+                  >
+                    ✕
                   </button>
-                  )}
-                  <button 
-                    className="btn-nav btn-nav-primary" 
-                    onClick={() => setShowCreateModal(true)}
-                    title="Créer une tâche (Ctrl+K)"
-                  >
-                    <span>➕</span>
-                    <span className="btn-label">Tâche</span>
-                </button>
-                  <button 
-                    className="btn-nav btn-nav-success" 
-                    onClick={fetchDailySummary}
-                  >
-                    <span>📋</span>
-                    <span className="btn-label">Daily</span>
-                </button>
+                )}
+                {showSearchResults && filteredTasks.length > 0 && (
+                  <div className="search-results">
+                    <div className="search-results-header">
+                      <span>{filteredTasks.length} résultat(s) trouvé(s)</span>
+                      <button onClick={() => setShowSearchResults(false)}>✕</button>
+                    </div>
+                    <div className="search-results-list">
+                      {filteredTasks.slice(0, 10).map(task => (
+                        <div
+                          key={task.id}
+                          className="search-result-item"
+                          onClick={() => {
+                            setSelectedTaskDetail(task)
+                            fetchSubtasks(task.id)
+                            setShowTaskDetailModal(true)
+                            setTaskSearchQuery('')
+                            setShowSearchResults(false)
+                          }}
+                        >
+                          <div className="search-result-title">{task.title}</div>
+                          {task.description && (
+                            <div className="search-result-description">{task.description.substring(0, 60)}...</div>
+                          )}
+                          <div className="search-result-meta">
+                            <span className={`search-result-status status-${task.status}`}>
+                              {task.status === 'todo' ? '📋 À faire' :
+                               task.status === 'in_progress' ? '🔄 En cours' :
+                               task.status === 'done' ? '✅ Terminé' :
+                               task.status === 'blocked' ? '🚫 Bloqué' :
+                               task.status === 'standby' ? '⏸️ Standby' :
+                               task.status === 'review' ? '⏳ Review' : task.status}
+                            </span>
+                            {task.trello_id && <span className="search-result-trello">🔗 {task.trello_id}</span>}
+                          </div>
+                        </div>
+                      ))}
+                      {filteredTasks.length > 10 && (
+                        <div className="search-results-more">
+                          + {filteredTasks.length - 10} autre(s) résultat(s)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {showSearchResults && filteredTasks.length === 0 && taskSearchQuery.trim() && (
+                  <div className="search-results search-results-empty">
+                    <div className="search-results-header">
+                      <span>Aucun résultat</span>
+                      <button onClick={() => setShowSearchResults(false)}>✕</button>
+                    </div>
+                    <div className="search-no-results">
+                      Aucune tâche ne correspond à "{taskSearchQuery}"
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Actions principales - toujours visibles */}
+              <div className="navbar-actions-primary">
+                {recognition && (
                   <button
-                    className="btn-nav btn-nav-info" 
-                    onClick={fetchWeeklySummary}
+                    className="btn-nav btn-nav-secondary btn-nav-priority"
+                    onClick={() => {
+                      if (recognition) {
+                        recognition.start()
+                        sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+                      }
+                    }}
+                    title="Commandes vocales (Ctrl+Shift+V)"
                   >
-                    <span>📊</span>
-                    <span className="btn-label">Weekly</span>
+                    <span>🎤</span>
+                    <span className="btn-label">Voix</span>
                   </button>
-                  <button 
-                    className="btn-nav btn-nav-warning" 
-                    onClick={() => setShowWorkflowModal(true)}
-                  >
-                    <span>📋</span>
-                    <span className="btn-label">Workflows</span>
+                )}
+                <button 
+                  className="btn-nav btn-nav-primary btn-nav-priority" 
+                  onClick={() => setShowCreateModal(true)}
+                  title="Créer une tâche (Ctrl+K)"
+                >
+                  <span>➕</span>
+                  <span className="btn-label">Tâche</span>
                 </button>
-                  <button 
-                    className="btn-nav btn-nav-info" 
-                    onClick={() => setShowCalendarModal(true)}
-                  >
-                    <span>📅</span>
-                    <span className="btn-label">Calendrier</span>
+              </div>
+
+              {/* Menu desktop - visible sur grands écrans */}
+              <div className="navbar-actions-desktop">
+                <button 
+                  className="btn-nav btn-nav-success" 
+                  onClick={fetchDailySummary}
+                  title="Résumé quotidien"
+                >
+                  <span>📋</span>
+                  <span className="btn-label">Daily</span>
                 </button>
-            <button 
-                    className="btn-nav btn-nav-secondary" 
-                    onClick={() => {
-                      fetchDeletedTasks()
-                      setShowTrashModal(true)
-                    }}
-                  >
-                    <span>🗑️</span>
-                    <span className="btn-label">Corbeille</span>
-            </button>
-            <button 
-                    className="btn-nav btn-nav-info" 
-                    onClick={() => {
-                      fetchTimeComparisonStats()
-                      setShowTimeAwarenessModal(true)
-                    }}
-                    title="Time Awareness - Comparaison estimation vs réalité"
-                  >
-                    <span>⏱️</span>
-                    <span className="btn-label">Time</span>
-            </button>
-            <button 
-                    className="btn-nav btn-nav-success" 
-                    onClick={() => {
-                      fetchTemplates()
-                      setShowTemplatesModal(true)
-                    }}
-                    title="Templates de tâches"
-                  >
-                    <span>📄</span>
-                    <span className="btn-label">Templates</span>
-            </button>
-            <button 
-                    className="btn-nav btn-nav-warning" 
-                    onClick={() => {
-                      fetchTags()
-                      setShowTagsModal(true)
-                    }}
-                    title="Tags et filtres"
-                  >
-                    <span>🏷️</span>
-                    <span className="btn-label">Tags</span>
-            </button>
-            <button 
-                    className="btn-nav btn-nav-info" 
-                    onClick={() => {
-                      fetchNotes()
-                      setShowNotesModal(true)
-                    }}
-                    title="Notes et Brain Dump"
-                  >
-                    <span>📝</span>
-                    <span className="btn-label">Notes</span>
-            </button>
-            <button 
-                    className="btn-nav btn-nav-primary" 
-                    onClick={() => {
-                      fetchDashboardStats()
-                      setShowStatsModal(true)
-                    }}
-                    title="Statistiques motivantes"
-                  >
-                    <span>📊</span>
-                    <span className="btn-label">Stats</span>
-            </button>
-                  <button 
-                    className="btn-nav btn-nav-secondary" 
-                    onClick={() => {
-                      fetchBreaks()
-                      setShowBreaksModal(true)
-                    }}
-                    title="Pauses structurées"
-                  >
-                    <span>☕</span>
-                    <span className="btn-label">Pauses</span>
-                  </button>
-                  <button 
-                    className="btn-nav btn-nav-success" 
-                    onClick={() => {
-                      fetchEnergyData()
-                      setShowEnergyModal(true)
-                    }}
-                    title="Energy Level Tracking"
-                  >
-                    <span>⚡</span>
-                    <span className="btn-label">Energy</span>
-                  </button>
-                  <button 
-                    className="btn-nav btn-nav-warning" 
-                    onClick={() => {
-                      fetchPendingReminders()
-                      setShowRemindersModal(true)
-                    }}
-                    title="Rappels contextuels"
-                  >
-                    <span>🔔</span>
-                    <span className="btn-label">Rappels</span>
-                  </button>
-                  <button 
-                    className="btn-nav btn-nav-info" 
-                    onClick={() => setShowTimelineModal(true)}
-                    title="Visualisation temporelle"
-                  >
-                    <span>📅</span>
-                    <span className="btn-label">Timeline</span>
-            </button>
-                </div>
-                <div className="navbar-user-menu">
-                  <button 
-                    className="btn-nav btn-nav-icon btn-nav-user-menu"
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    title="Menu utilisateur"
-                    aria-label="Menu utilisateur"
-                  >
-                    <span>⚙️</span>
-                  </button>
-                  {showUserMenu && (
-                    <>
-                      <div className="user-menu-overlay" onClick={() => setShowUserMenu(false)}></div>
-                      <div className="user-menu-dropdown">
+                <button
+                  className="btn-nav btn-nav-info" 
+                  onClick={fetchWeeklySummary}
+                  title="Résumé hebdomadaire"
+                >
+                  <span>📊</span>
+                  <span className="btn-label">Weekly</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-warning" 
+                  onClick={() => setShowWorkflowModal(true)}
+                  title="Workflows"
+                >
+                  <span>📋</span>
+                  <span className="btn-label">Workflows</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-info" 
+                  onClick={() => setShowCalendarModal(true)}
+                  title="Calendrier"
+                >
+                  <span>📅</span>
+                  <span className="btn-label">Calendrier</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-secondary" 
+                  onClick={() => {
+                    fetchDeletedTasks()
+                    setShowTrashModal(true)
+                  }}
+                  title="Corbeille"
+                >
+                  <span>🗑️</span>
+                  <span className="btn-label">Corbeille</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-info" 
+                  onClick={() => {
+                    fetchTimeComparisonStats()
+                    setShowTimeAwarenessModal(true)
+                  }}
+                  title="Time Awareness"
+                >
+                  <span>⏱️</span>
+                  <span className="btn-label">Time</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-success" 
+                  onClick={() => {
+                    fetchTemplates()
+                    setShowTemplatesModal(true)
+                  }}
+                  title="Templates"
+                >
+                  <span>📄</span>
+                  <span className="btn-label">Templates</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-warning" 
+                  onClick={() => {
+                    fetchTags()
+                    setShowTagsModal(true)
+                  }}
+                  title="Tags"
+                >
+                  <span>🏷️</span>
+                  <span className="btn-label">Tags</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-info" 
+                  onClick={() => {
+                    fetchNotes()
+                    setShowNotesModal(true)
+                  }}
+                  title="Notes"
+                >
+                  <span>📝</span>
+                  <span className="btn-label">Notes</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-primary" 
+                  onClick={() => {
+                    fetchDashboardStats()
+                    setShowStatsModal(true)
+                  }}
+                  title="Statistiques"
+                >
+                  <span>📊</span>
+                  <span className="btn-label">Stats</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-secondary" 
+                  onClick={() => {
+                    fetchBreaks()
+                    setShowBreaksModal(true)
+                  }}
+                  title="Pauses"
+                >
+                  <span>☕</span>
+                  <span className="btn-label">Pauses</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-success" 
+                  onClick={() => {
+                    fetchEnergyData()
+                    setShowEnergyModal(true)
+                  }}
+                  title="Energy"
+                >
+                  <span>⚡</span>
+                  <span className="btn-label">Energy</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-warning" 
+                  onClick={() => {
+                    fetchPendingReminders()
+                    setShowRemindersModal(true)
+                  }}
+                  title="Rappels"
+                >
+                  <span>🔔</span>
+                  <span className="btn-label">Rappels</span>
+                </button>
+                <button 
+                  className="btn-nav btn-nav-info" 
+                  onClick={() => setShowTimelineModal(true)}
+                  title="Timeline"
+                >
+                  <span>📅</span>
+                  <span className="btn-label">Timeline</span>
+                </button>
+              </div>
+
+              {/* Menu hamburger mobile */}
+              <button 
+                className="btn-nav btn-nav-icon btn-nav-hamburger"
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                title="Menu"
+                aria-label="Menu"
+              >
+                <span>{showMobileMenu ? '✕' : '☰'}</span>
+              </button>
+
+              {/* Menu mobile déroulant avec catégories */}
+              {showMobileMenu && (
+                <>
+                  <div className="mobile-menu-overlay" onClick={() => setShowMobileMenu(false)}></div>
+                  <div className="mobile-menu-dropdown">
+                    {/* En-tête du menu */}
+                    <div className="mobile-menu-header">
+                      <h3 className="mobile-menu-title">Menu</h3>
+                      <button 
+                        className="mobile-menu-close"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Catégorie : Rapports & Résumés */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">📊 Rapports & Résumés</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchDailySummary()
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📋</span>
+                        <span className="mobile-menu-label">Daily Summary</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchWeeklySummary()
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📊</span>
+                        <span className="mobile-menu-label">Weekly Summary</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchDashboardStats()
+                          setShowStatsModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📈</span>
+                        <span className="mobile-menu-label">Statistiques</span>
+                      </button>
+                    </div>
+
+                    {/* Catégorie : Organisation */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">🗂️ Organisation</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          setShowWorkflowModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📋</span>
+                        <span className="mobile-menu-label">Workflows</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          setShowCalendarModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📅</span>
+                        <span className="mobile-menu-label">Calendrier</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          setShowTimelineModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📅</span>
+                        <span className="mobile-menu-label">Timeline</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchTags()
+                          setShowTagsModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">🏷️</span>
+                        <span className="mobile-menu-label">Tags</span>
+                      </button>
+                    </div>
+
+                    {/* Catégorie : Productivité */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">⚡ Productivité</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchTemplates()
+                          setShowTemplatesModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📄</span>
+                        <span className="mobile-menu-label">Templates</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchNotes()
+                          setShowNotesModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">📝</span>
+                        <span className="mobile-menu-label">Notes</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchTimeComparisonStats()
+                          setShowTimeAwarenessModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">⏱️</span>
+                        <span className="mobile-menu-label">Time Awareness</span>
+                      </button>
+                    </div>
+
+                    {/* Catégorie : Bien-être */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">💚 Bien-être</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchBreaks()
+                          setShowBreaksModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">☕</span>
+                        <span className="mobile-menu-label">Pauses</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchEnergyData()
+                          setShowEnergyModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">⚡</span>
+                        <span className="mobile-menu-label">Energy</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchPendingReminders()
+                          setShowRemindersModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">🔔</span>
+                        <span className="mobile-menu-label">Rappels</span>
+                      </button>
+                    </div>
+
+                    {/* Catégorie : Gestion */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">🗑️ Gestion</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          fetchDeletedTasks()
+                          setShowTrashModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">🗑️</span>
+                        <span className="mobile-menu-label">Corbeille</span>
+                      </button>
+                    </div>
+
+                    <div className="mobile-menu-divider"></div>
+
+                    {/* Catégorie : Paramètres */}
+                    <div className="mobile-menu-category">
+                      <div className="mobile-menu-category-title">⚙️ Paramètres</div>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          setShowNotificationModal(true)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">🔔</span>
+                        <span className="mobile-menu-label">Notifications</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item"
+                        onClick={() => {
+                          setDarkMode(!darkMode)
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">{darkMode ? '☀️' : '🌙'}</span>
+                        <span className="mobile-menu-label">{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
+                      </button>
+                      <button 
+                        className="mobile-menu-item mobile-menu-item-danger"
+                        onClick={() => {
+                          logout()
+                          setShowMobileMenu(false)
+                        }}
+                      >
+                        <span className="mobile-menu-icon">🚪</span>
+                        <span className="mobile-menu-label">Déconnexion</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Menu utilisateur desktop */}
+              <div className="navbar-user-menu">
+                <button 
+                  className="btn-nav btn-nav-icon btn-nav-user-menu"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  title="Menu utilisateur"
+                  aria-label="Menu utilisateur"
+                >
+                  <span>⚙️</span>
+                </button>
+                {showUserMenu && (
+                  <>
+                    <div className="user-menu-overlay" onClick={() => setShowUserMenu(false)}></div>
+                    <div className="user-menu-dropdown">
                       <button 
                         className={`user-menu-item ${notificationsEnabled ? 'active' : ''}`}
                         onClick={() => {
@@ -1626,12 +2026,11 @@ export default function TaskflowPage() {
                         <span className="user-menu-label">Déconnexion</span>
                       </button>
                     </div>
-                    </>
-                  )}
-                </div>
-          </div>
-        </div>
-      </nav>
+                  </>
+                )}
+              </div>
+            </div>
+        </nav>
 
       {tasks.filter(t => t.status === 'in_progress').length === 0 && tasks.length > 0 && (
         <div className="taskflow-alert taskflow-alert-warning">
@@ -2230,64 +2629,227 @@ export default function TaskflowPage() {
           </div>
         </div>
 
-      {/* FAB - Floating Action Button */}
+      {/* FAB - Floating Action Button - Actions rapides uniquement */}
       <div className={`fab-container ${fabOpen ? 'open' : ''}`}>
         <div className="fab-menu">
-          <button 
-            className="fab-item fab-item-primary"
-            onClick={() => {
-              setShowCreateModal(true)
-              setFabOpen(false)
-            }}
-          >
-            <span className="fab-icon">➕</span>
-            <span className="fab-label">Nouvelle tâche</span>
-          </button>
-          <button 
-            className="fab-item fab-item-success"
-            onClick={() => {
-              fetchDailySummary()
-              setFabOpen(false)
-            }}
-          >
-            <span className="fab-icon">📋</span>
-            <span className="fab-label">Daily Summary</span>
-          </button>
-          <button 
-            className="fab-item fab-item-info"
-            onClick={() => {
-              fetchWeeklySummary()
-              setFabOpen(false)
-            }}
-          >
-            <span className="fab-icon">📊</span>
-            <span className="fab-label">Weekly Summary</span>
-          </button>
-          <button 
-            className="fab-item fab-item-warning"
-            onClick={() => {
-              setShowWorkflowModal(true)
-              setFabOpen(false)
-            }}
-          >
-            <span className="fab-icon">📋</span>
-            <span className="fab-label">Workflows</span>
-          </button>
-          <button 
-            className="fab-item fab-item-info"
-            onClick={() => {
-              setShowCalendarModal(true)
-              setFabOpen(false)
-            }}
-          >
-            <span className="fab-icon">📅</span>
-            <span className="fab-label">Calendrier</span>
-          </button>
+          {/* Actions rapides principales */}
+          {!fabCategory && (
+            <>
+              <button 
+                className="fab-item fab-item-primary"
+                onClick={() => {
+                  setShowCreateModal(true)
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">➕</span>
+                <span className="fab-label">Nouvelle tâche</span>
+              </button>
+              {recognition && (
+                <button 
+                  className="fab-item fab-item-secondary"
+                  onClick={() => {
+                    if (recognition) {
+                      recognition.start()
+                      sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+                    }
+                    setFabOpen(false)
+                  }}
+                >
+                  <span className="fab-icon">🎤</span>
+                  <span className="fab-label">Commandes vocales</span>
+                </button>
+              )}
+              <button 
+                className="fab-item fab-item-success"
+                onClick={() => {
+                  fetchDailySummary()
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">📋</span>
+                <span className="fab-label">Daily Summary</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info"
+                onClick={() => {
+                  fetchWeeklySummary()
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">📊</span>
+                <span className="fab-label">Weekly Summary</span>
+              </button>
+              <button 
+                className="fab-item fab-item-secondary"
+                onClick={() => {
+                  fetchBreaks()
+                  setShowBreaksModal(true)
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">☕</span>
+                <span className="fab-label">Pauses</span>
+              </button>
+              <button 
+                className="fab-item fab-item-success"
+                onClick={() => {
+                  fetchEnergyData()
+                  setShowEnergyModal(true)
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">⚡</span>
+                <span className="fab-label">Energy</span>
+              </button>
+              <button 
+                className="fab-item fab-item-warning"
+                onClick={() => {
+                  fetchPendingReminders()
+                  setShowRemindersModal(true)
+                  setFabOpen(false)
+                }}
+              >
+                <span className="fab-icon">🔔</span>
+                <span className="fab-label">Rappels</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info fab-item-category"
+                onClick={() => setFabCategory('more')}
+              >
+                <span className="fab-icon">⋯</span>
+                <span className="fab-label">Plus d'actions</span>
+              </button>
+            </>
+          )}
+          
+          {/* Sous-menu "Plus d'actions" */}
+          {fabCategory === 'more' && (
+            <>
+              <button 
+                className="fab-item fab-item-back"
+                onClick={() => setFabCategory(null)}
+              >
+                <span className="fab-icon">←</span>
+                <span className="fab-label">Retour</span>
+              </button>
+              <button 
+                className="fab-item fab-item-warning"
+                onClick={() => {
+                  setShowWorkflowModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📋</span>
+                <span className="fab-label">Workflows</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info"
+                onClick={() => {
+                  setShowCalendarModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📅</span>
+                <span className="fab-label">Calendrier</span>
+              </button>
+              <button 
+                className="fab-item fab-item-secondary"
+                onClick={() => {
+                  fetchDeletedTasks()
+                  setShowTrashModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">🗑️</span>
+                <span className="fab-label">Corbeille</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info"
+                onClick={() => {
+                  fetchTimeComparisonStats()
+                  setShowTimeAwarenessModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">⏱️</span>
+                <span className="fab-label">Time Awareness</span>
+              </button>
+              <button 
+                className="fab-item fab-item-success"
+                onClick={() => {
+                  fetchTemplates()
+                  setShowTemplatesModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📄</span>
+                <span className="fab-label">Templates</span>
+              </button>
+              <button 
+                className="fab-item fab-item-warning"
+                onClick={() => {
+                  fetchTags()
+                  setShowTagsModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">🏷️</span>
+                <span className="fab-label">Tags</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info"
+                onClick={() => {
+                  fetchNotes()
+                  setShowNotesModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📝</span>
+                <span className="fab-label">Notes</span>
+              </button>
+              <button 
+                className="fab-item fab-item-primary"
+                onClick={() => {
+                  fetchDashboardStats()
+                  setShowStatsModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📊</span>
+                <span className="fab-label">Statistiques</span>
+              </button>
+              <button 
+                className="fab-item fab-item-info"
+                onClick={() => {
+                  setShowTimelineModal(true)
+                  setFabOpen(false)
+                  setFabCategory(null)
+                }}
+              >
+                <span className="fab-icon">📅</span>
+                <span className="fab-label">Timeline</span>
+              </button>
+            </>
+          )}
         </div>
         <button 
           className={`fab-main ${fabOpen ? 'open' : ''}`}
-          onClick={() => setFabOpen(!fabOpen)}
-          aria-label="Menu actions"
+          onClick={() => {
+            setFabOpen(!fabOpen)
+            if (!fabOpen) {
+              setFabCategory(null)
+            }
+          }}
+          aria-label="Menu actions rapides"
         >
           <span className="fab-main-icon">{fabOpen ? '✕' : '➕'}</span>
         </button>
@@ -3290,7 +3852,7 @@ export default function TaskflowPage() {
                             year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
-                          })}
+                          }) : 'Date inconnue'}
                         </span>
                       </div>
                       {task.description && (

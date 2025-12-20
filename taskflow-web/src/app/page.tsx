@@ -2605,7 +2605,7 @@ export default function TaskflowPage() {
                   type="datetime-local"
                   className="form-input-modern"
                   value={selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().slice(0, 16) : ''}
-                  onChange={(e) => setSelectedTask({...selectedTask, due_date: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                  onChange={(e) => setSelectedTask({...selectedTask, due_date: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
                 />
                 <small className="form-hint">Vous pouvez définir une date et heure précise pour cette tâche</small>
               </div>

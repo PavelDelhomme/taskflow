@@ -265,14 +265,10 @@ export default function TaskflowPage() {
       
       // Vérifier les rappels toutes les minutes
       const reminderInterval = setInterval(() => {
-        if (token) {
+        if (savedToken) {
           fetchPendingReminders()
         }
       }, 60000)
-      
-      return () => {
-        if (reminderInterval) clearInterval(reminderInterval)
-      }
       
       interval = setInterval(() => {
         const currentToken = localStorage.getItem('token')
@@ -285,18 +281,25 @@ export default function TaskflowPage() {
           }
         }
       }, 30 * 60 * 1000)
+
+      return () => {
+        if (reminderInterval) clearInterval(reminderInterval)
+        if (interval) {
+          clearInterval(interval)
+        }
+        if (document.head && document.head.contains(style)) {
+          document.head.removeChild(style)
+        }
+      }
     } else {
       // Pas de token valide, s'assurer que l'utilisateur est déconnecté
       setIsLoggedIn(false)
       setToken('')
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval)
-      }
-      if (document.head && document.head.contains(style)) {
-      document.head.removeChild(style)
+      
+      return () => {
+        if (document.head && document.head.contains(style)) {
+          document.head.removeChild(style)
+        }
       }
     }
   }, [])

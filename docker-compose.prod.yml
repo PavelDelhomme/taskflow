@@ -7,7 +7,7 @@ services:
   # 🔥 API FastAPI TaskFlow ADHD
   taskflow-api:
     image: taskflow-api:latest  # Image locale que tu builderas
-    container_name: taskflow-api-paul
+    container_name: taskflow-api
     ports:
       - "4001:8000"
     environment:
@@ -30,7 +30,7 @@ services:
   # 🌐 Web Next.js TaskFlow ADHD  
   taskflow-web:
     image: taskflow-web:latest  # Image locale que tu builderas
-    container_name: taskflow-web-paul
+    container_name: taskflow-web
     ports:
       - "4000:3000"
     environment:
@@ -55,4 +55,4 @@ networks:
 
 volumes:
   taskflow_api_data:
-    name: taskflow_api_data_paul
+    name: taskflow_api_data

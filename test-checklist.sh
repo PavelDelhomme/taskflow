@@ -28,26 +28,26 @@ check_service() {
 
 # Vérifier les conteneurs Docker
 echo "📦 Vérification des conteneurs Docker..."
-if docker ps | grep -q "taskflow-web-paul"; then
-    echo -e "${GREEN}✅${NC} Conteneur taskflow-web-paul est démarré"
+if docker ps | grep -q "taskflow-web"; then
+    echo -e "${GREEN}✅${NC} Conteneur taskflow-web est démarré"
 else
-    echo -e "${RED}❌${NC} Conteneur taskflow-web-paul n'est pas démarré"
+    echo -e "${RED}❌${NC} Conteneur taskflow-web n'est pas démarré"
     echo "   Lancez: make start"
     exit 1
 fi
 
-if docker ps | grep -q "taskflow-api-paul"; then
-    echo -e "${GREEN}✅${NC} Conteneur taskflow-api-paul est démarré"
+if docker ps | grep -q "taskflow-api"; then
+    echo -e "${GREEN}✅${NC} Conteneur taskflow-api est démarré"
 else
-    echo -e "${RED}❌${NC} Conteneur taskflow-api-paul n'est pas démarré"
+    echo -e "${RED}❌${NC} Conteneur taskflow-api n'est pas démarré"
     echo "   Lancez: make start"
     exit 1
 fi
 
-if docker ps | grep -q "taskflow-db-paul"; then
-    echo -e "${GREEN}✅${NC} Conteneur taskflow-db-paul est démarré"
+if docker ps | grep -q "taskflow-db"; then
+    echo -e "${GREEN}✅${NC} Conteneur taskflow-db est démarré"
 else
-    echo -e "${RED}❌${NC} Conteneur taskflow-db-paul n'est pas démarré"
+    echo -e "${RED}❌${NC} Conteneur taskflow-db n'est pas démarré"
     echo "   Lancez: make start"
     exit 1
 fi
@@ -65,11 +65,11 @@ echo ""
 
 # Vérifier la base de données
 echo "🗄️  Vérification de la base de données..."
-if docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -c "SELECT 1" > /dev/null 2>&1; then
+if docker exec taskflow-db psql -U taskflow -d taskflow_adhd -c "SELECT 1" > /dev/null 2>&1; then
     echo -e "${GREEN}✅${NC} Base de données est accessible"
     
     # Vérifier les tables
-    TABLES=$(docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'tasks', 'workflows');")
+    TABLES=$(docker exec taskflow-db psql -U taskflow -d taskflow_adhd -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'tasks', 'workflows');")
     if [ "$TABLES" -eq 3 ]; then
         echo -e "${GREEN}✅${NC} Toutes les tables existent"
     else
@@ -77,19 +77,19 @@ if docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -c "SELECT 1" 
     fi
     
     # Vérifier les colonnes importantes
-    if docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "project"; then
+    if docker exec taskflow-db psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "project"; then
         echo -e "${GREEN}✅${NC} Colonne 'project' existe dans tasks"
     else
         echo -e "${YELLOW}⚠️${NC}  Colonne 'project' manquante dans tasks - Lancez: make migrate"
     fi
     
-    if docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "due_date"; then
+    if docker exec taskflow-db psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "due_date"; then
         echo -e "${GREEN}✅${NC} Colonne 'due_date' existe dans tasks"
     else
         echo -e "${YELLOW}⚠️${NC}  Colonne 'due_date' manquante dans tasks - Lancez: make migrate"
     fi
     
-    if docker exec taskflow-db-paul psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "time_spent_seconds"; then
+    if docker exec taskflow-db psql -U taskflow -d taskflow_adhd -c "\d tasks" | grep -q "time_spent_seconds"; then
         echo -e "${GREEN}✅${NC} Colonnes de time tracking existent dans tasks"
     else
         echo -e "${YELLOW}⚠️${NC}  Colonnes de time tracking manquantes - Lancez: make migrate"

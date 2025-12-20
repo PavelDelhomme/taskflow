@@ -1,5 +1,5 @@
 # ============================================================================
-# 🎯 TaskFlow ADHD - Docker Compose PORTS SÉCURISÉS PAUL
+# 🎯 TaskFlow ADHD - Docker Compose PORTS SÉCURISÉS
 # ÉVITE tous les ports PITER: 8081:80, 15672, 1025, 3306, 3310, 3519, 80, 8025, 5672, 3579
 # UTILISE: Web:4000 | API:4001 | DB:4002
 # ============================================================================
@@ -10,7 +10,7 @@ services:
     build:
       context: ./taskflow-api
       dockerfile: Dockerfile
-    container_name: taskflow-api-paul
+    container_name: taskflow-api
     ports:
       - "4001:8000"  # Port externe 4001
     environment:
@@ -39,7 +39,7 @@ services:
     build:
       context: ./taskflow-web
       dockerfile: Dockerfile
-    container_name: taskflow-web-paul
+    container_name: taskflow-web
     ports:
       - "4000:3000"  # Port externe 4000
     environment:
@@ -64,7 +64,7 @@ services:
   # 🗄️ Base de données PostgreSQL TaskFlow
   taskflow-db:
     image: postgres:15-alpine
-    container_name: taskflow-db-paul
+    container_name: taskflow-db
     ports:
       - "4002:5432"  # Port externe 4002
     environment:
@@ -85,14 +85,14 @@ services:
 
 networks:
   taskflow-network:
-    name: taskflow-network-paul
+    name: taskflow-network
     driver: bridge
 
 volumes:
   taskflow_postgres_data:
-    name: taskflow_postgres_data_paul
+    name: taskflow_postgres_data
   taskflow_api_data:
-    name: taskflow_api_data_paul
+    name: taskflow_api_data
 
 # 📋 PORTS UTILISÉS PAR CE PROJET:
 # - 4000: TaskFlow Web (Next.js)

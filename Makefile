@@ -64,33 +64,33 @@ status:
 
 test-data:
 	@echo "🧪 Génération des données de test..."
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data.sql
 	@echo "✅ Données de test générées !"
 
 test-data-due-dates:
 	@echo "🧪 Génération des données de test avec échéances..."
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data-with-due-dates.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data-with-due-dates.sql
 	@echo "✅ Données de test avec échéances générées !"
 
 clean-test:
 	@echo "🧹 Suppression des données de test..."
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/clean-test-data.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/clean-test-data.sql
 	@echo "✅ Données de test supprimées (utilisateur conservé) !"
 
 migrate:
 	@echo "🔄 Application des migrations..."
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_deleted_at.sql
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_workflows.sql
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_due_date.sql
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_time_tracking.sql
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_tasks.sql
-	@docker exec -i taskflow-db-paul psql -U taskflow -d taskflow_adhd < taskflow-api/migration_tdah_features.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_deleted_at.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_workflows.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_due_date.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_time_tracking.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_tasks.sql
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_tdah_features.sql
 	@echo "✅ Migrations appliquées !"
 
 clean-cache:
 	@echo "🧹 Nettoyage du cache Next.js..."
 	@sudo rm -rf taskflow-web/.next 2>/dev/null || true
-	@docker exec taskflow-web-paul rm -rf /app/.next 2>/dev/null || true
+	@docker exec taskflow-web rm -rf /app/.next 2>/dev/null || true
 	@echo "✅ Cache Next.js nettoyé !"
 
 test-check:

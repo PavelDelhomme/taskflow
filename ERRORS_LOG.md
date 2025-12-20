@@ -77,8 +77,8 @@ Error: Cannot find module './vendor-chunks/next'
 1. **Nettoyer complètement le cache :**
    ```bash
    make clean-cache
-   docker exec taskflow-web-paul rm -rf /app/.next
-   docker restart taskflow-web-paul
+   docker exec taskflow-web rm -rf /app/.next
+   docker restart taskflow-web
    ```
 
 2. **Vérifier la structure JSX :**
@@ -92,7 +92,7 @@ Error: Cannot find module './vendor-chunks/next'
 
 4. **Rebuild complet :**
    ```bash
-   docker exec taskflow-web-paul npm run build
+   docker exec taskflow-web npm run build
    ```
 
 ## 📝 Notes

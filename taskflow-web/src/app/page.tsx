@@ -156,6 +156,10 @@ export default function TaskflowPage() {
   // Commandes vocales
   const [voiceCommandsEnabled, setVoiceCommandsEnabled] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
+  const [isListening, setIsListening] = useState(false)
+  const [voiceCommandText, setVoiceCommandText] = useState('')
+  const [showVoiceHelpModal, setShowVoiceHelpModal] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
 
   // Utiliser une variable d'environnement ou une valeur par défaut
   const API_URL = (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) 

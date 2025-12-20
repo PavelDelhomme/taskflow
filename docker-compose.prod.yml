@@ -13,7 +13,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
-      - SECRET_KEY=taskflow-adhd-secret-key-paul-delhomme-2025
+      - SECRET_KEY=taskflow-adhd-secret-key-2025
       - CORS_ORIGINS=https://taskflow.delhomme.ovh,http://localhost:4000
     volumes:
       - taskflow_api_data:/app/data

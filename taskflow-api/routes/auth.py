@@ -17,7 +17,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
 # Configuration
-SECRET_KEY = "taskflow-adhd-secret-key-paul-delhomme-2025"
+SECRET_KEY = "taskflow-adhd-secret-key-2025"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24h
 
@@ -91,8 +91,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def validate_email(email: str) -> bool:
-    """Valider format email + domaine @delhomme.ovh"""
-    pattern = r'^[a-zA-Z0-9._%+-]+@delhomme\.ovh$'
+    """Valider format email + domaine autorisé"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@taskflow\.local$'
     return re.match(pattern, email) is not None
 
 # 🔐 ROUTES AUTH
@@ -105,7 +105,7 @@ async def register(user_data: UserRegister):
     if not validate_email(user_data.email):
         raise HTTPException(
             status_code=400,
-            detail="Email must be @delhomme.ovh domain"
+            detail="Email must be @taskflow.local domain"
         )
     
     # Validation username

@@ -8,10 +8,10 @@ from fastapi import HTTPException, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # Configuration
-SECRET_KEY = "taskflow-adhd-secret-key-paul-delhomme-2025"
+SECRET_KEY = "taskflow-adhd-secret-key-2025"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24h pour multi-sessions
-ALLOWED_DOMAIN = "@delhomme.ovh"
+ALLOWED_DOMAIN = "@taskflow.local"
 
 security = HTTPBearer()
 
@@ -57,6 +57,6 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-def validate_delhomme_email(email: str) -> bool:
-    """Valide que l'email appartient au domaine @delhomme.ovh"""
+def validate_taskflow_email(email: str) -> bool:
+    """Valide que l'email appartient au domaine autorisé"""
     return email.endswith(ALLOWED_DOMAIN)

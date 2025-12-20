@@ -17,7 +17,7 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://taskflow:taskflow123@taskflow-db:5432/taskflow_adhd
-      - SECRET_KEY=taskflow-adhd-secret-key-paul-delhomme-2025
+      - SECRET_KEY=taskflow-adhd-secret-key-2025
       - CORS_ORIGINS=http://localhost:4000,http://taskflow-web:3000
     volumes:
       - ./taskflow-api:/app

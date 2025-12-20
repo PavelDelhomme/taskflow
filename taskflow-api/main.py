@@ -19,7 +19,7 @@ from routes.reminders import router as reminders_router
 # 🚀 FASTAPI APP
 app = FastAPI(
     title="TaskFlow ADHD API",
-    description="API pour gestion des tâches ADHD de Paul",
+    description="API pour gestion des tâches ADHD",
     version="1.0.0",
     redirect_slashes=False
 )
@@ -51,7 +51,7 @@ app.include_router(reminders_router)
 @app.get("/")
 async def root():
     return {
-        "message": "🎯 TaskFlow ADHD API - Paul Delhomme",
+        "message": "🎯 TaskFlow ADHD API",
         "version": "1.0.0",
         "status": "✅ Running",
         "routes": {

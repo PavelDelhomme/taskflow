@@ -161,28 +161,65 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ## 🎯 Prochaines Étapes
 
-### Priorité 1 : Frontend Core
-1. **Time Awareness** - Ajouter champ estimation dans formulaires + graphiques
-2. **Templates** - Interface de création/utilisation de templates
-3. **Breakdown automatique** - UI pour décomposer les tâches
-4. **Tags** - Interface de gestion des tags et filtres
-5. **Notes/Brain Dump** - Zone de notes avec conversion en tâches
+### 🔴 Priorité 1 : Amélioration Système de Commandes Vocales
+1. **Système de commandes vocales complet et fonctionnel**
+   - [ ] Améliorer la gestion d'état de la reconnaissance vocale (isListening, voiceCommandText, voiceError)
+   - [ ] Implémenter toutes les commandes vocales avancées :
+     - [ ] Créer une tâche par la voix ("créer tâche [titre]")
+     - [ ] Modifier le statut d'une tâche ("mettre [tâche] en cours/terminé/bloqué")
+     - [ ] Ouvrir/fermer les modals ("ouvrir calendrier", "fermer")
+     - [ ] Navigation complète ("afficher statistiques", "afficher pauses", etc.)
+   - [ ] Créer une modal d'aide avec toutes les commandes vocales disponibles
+   - [ ] Ajouter des indicateurs visuels pour l'écoute active (animation, feedback)
+   - [ ] Améliorer la gestion des erreurs (microphone non disponible, permissions, etc.)
+   - [ ] Ajouter un feedback audio optionnel pour les commandes reconnues
+   - [ ] Implémenter la transcription en temps réel (interimResults)
+   - [ ] Ajouter des commandes vocales contextuelles (selon la page/modal ouverte)
 
-### Priorité 2 : Frontend Avancé
-6. **Statistiques** - Dashboard avec graphiques
-7. **Pauses** - Timer de pause avec notifications
-8. **Energy Tracking** - Interface d'enregistrement et graphiques
+### 🟡 Priorité 2 : Améliorations UX/UI Récentes
+2. **Recherche de tâches** ✅ (Déjà implémentée)
+   - Barre de recherche dans la navbar
+   - Résultats en temps réel avec aperçu
 
-### Priorité 3 : Fonctionnalités Complexes
-9. **Rappels contextuels** - Système de rappels intelligents
-10. **Visualisation temporelle** - Timeline/Gantt
-11. **Commandes vocales** - Intégration Web Speech API
-12. **Body Doubling** - WebSockets + interface collaborative
+3. **Menu mobile amélioré** ✅ (Déjà implémenté)
+   - Organisation par catégories
+   - Meilleure visibilité
 
-### Priorité 4 : IA/ML
-13. **IA/ML** - Prédictions et suggestions intelligentes
+4. **Colonnes scrollables** ✅ (Déjà implémentées)
+   - Colonnes prennent toute la hauteur disponible
+   - Scroll automatique quand nécessaire
+
+5. **Bouton toggle actions tâches** ✅ (Déjà implémenté)
+   - Masquer/afficher les actions pour réduire l'encombrement
+
+### 🟢 Priorité 3 : Fonctionnalités Complexes
+6. **Rappels contextuels** - Système de rappels intelligents (API déjà prête)
+7. **Body Doubling** - WebSockets + interface collaborative
+8. **IA/ML** - Prédictions et suggestions intelligentes
 
 ---
 
-*Dernière mise à jour : 2025-01-18*
+## 📋 Notes Techniques
+
+### Modifications Récentes (2025-01-20)
+- ✅ **Sécurité** : Suppression complète des références personnelles
+  - Utilisateur par défaut : `admin@taskflow.local` / `taskflow123`
+  - Noms de conteneurs Docker génériques (sans suffixe -paul)
+  - SECRET_KEY nettoyée
+  - Domaines email : `@taskflow.local`
+- ✅ **Recherche** : Barre de recherche de tâches fonctionnelle
+- ✅ **Menu mobile** : Réorganisé par catégories avec meilleure visibilité
+- ✅ **Colonnes** : Système scrollable amélioré
+- ✅ **Actions tâches** : Bouton toggle pour masquer/afficher
+
+### À Faire Prochainement
+1. **Système de commandes vocales** (Priorité absolue)
+   - Compléter l'implémentation actuelle
+   - Ajouter modal d'aide
+   - Améliorer feedback visuel et audio
+   - Gérer toutes les commandes possibles
+
+---
+
+*Dernière mise à jour : 2025-01-20*
 

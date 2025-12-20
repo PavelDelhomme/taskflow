@@ -979,9 +979,9 @@ export default function TaskflowPage() {
     try {
       const taskData = {
         ...newTask,
-        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null,
-        project: newTask.project || null,
-        estimated_time_minutes: newTask.estimated_time_minutes || null
+        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : undefined,
+        project: newTask.project || undefined,
+        estimated_time_minutes: newTask.estimated_time_minutes || undefined
       }
       
       const response = await fetch(`${API_URL}/tasks/`, {
@@ -994,7 +994,7 @@ export default function TaskflowPage() {
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '', estimated_time_minutes: null })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: undefined, project: '', estimated_time_minutes: null })
         setShowCreateModal(false)
         fetchTasks(token)
         showActionFeedback('✅ Tâche créée avec succès', 'success')
@@ -2616,7 +2616,7 @@ export default function TaskflowPage() {
                     type="number"
                     className="form-input-modern"
                     value={selectedTask.estimated_time_minutes || ''}
-                    onChange={(e) => setSelectedTask({...selectedTask, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : null})}
+                    onChange={(e) => setSelectedTask({...selectedTask, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : undefined})}
                     placeholder="Ex: 30"
                     min="1"
                     style={{ flex: 1 }}
@@ -3281,7 +3281,7 @@ export default function TaskflowPage() {
                       <div className="trash-task-header">
                         <h4 className="trash-task-title">{task.title}</h4>
                         <span className="trash-task-date">
-                          Supprimée le {new Date(task.deleted_at).toLocaleDateString('fr-FR', { 
+                          Supprimée le {task.deleted_at ? new Date(task.deleted_at).toLocaleDateString('fr-FR', { 
                             day: 'numeric', 
                             month: 'long', 
                             year: 'numeric',

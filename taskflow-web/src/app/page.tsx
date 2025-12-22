@@ -168,6 +168,7 @@ export default function TaskflowPage() {
   const [voiceCommandText, setVoiceCommandText] = useState('')
   const [showVoiceHelpModal, setShowVoiceHelpModal] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [voiceAudioFeedback, setVoiceAudioFeedback] = useState(true) // Feedback audio activé par défaut
   
   // 🧠 Mécanisme d'attention intelligent (tracking en arrière-plan pour l'IA)
   const [currentFocusTask, setCurrentFocusTask] = useState<number | null>(null)
@@ -346,35 +347,252 @@ export default function TaskflowPage() {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
       const recognition = new SpeechRecognition()
       recognition.continuous = false
-      recognition.interimResults = false
+      recognition.interimResults = true // Activer pour transcription en temps réel
       recognition.lang = 'fr-FR'
       
+      // Transcription en temps réel (interim results)
       recognition.onresult = (event: any) => {
-        const command = event.results[0][0].transcript.toLowerCase()
-        handleVoiceCommand(command)
+        let interimTranscript = ''
+        let finalTranscript = ''
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript
+          } else {
+            interimTranscript += transcript
+          }
+        }
+        
+        // Afficher la transcription en temps réel
+        if (interimTranscript) {
+          setVoiceCommandText(interimTranscript)
+        }
+        
+        // Traiter la commande finale
+        if (finalTranscript) {
+          const command = finalTranscript.toLowerCase().trim()
+          setVoiceCommandText(command)
+          handleVoiceCommand(command)
+          // Réinitialiser après un court délai
+          setTimeout(() => {
+            setVoiceCommandText('')
+          }, 2000)
+        }
+      }
+      
+      // Gestion des erreurs
+      recognition.onerror = (event: any) => {
+        console.error('Erreur de reconnaissance vocale:', event.error)
+        setIsListening(false)
+        
+        switch (event.error) {
+          case 'no-speech':
+            setVoiceError('Aucune parole détectée. Réessayez.')
+            break
+          case 'audio-capture':
+            setVoiceError('Microphone non disponible. Vérifiez vos permissions.')
+            break
+          case 'not-allowed':
+            setVoiceError('Permission microphone refusée. Activez-la dans les paramètres.')
+            break
+          case 'network':
+            setVoiceError('Erreur réseau. Vérifiez votre connexion.')
+            break
+          default:
+            setVoiceError(`Erreur: ${event.error}`)
+        }
+        
+        // Réinitialiser après affichage de l'erreur
+        setTimeout(() => {
+          setVoiceError(null)
+        }, 3000)
+      }
+      
+      // Quand la reconnaissance se termine
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+      
+      // Quand la reconnaissance commence
+      recognition.onstart = () => {
+        setIsListening(true)
+        setVoiceError(null)
+        setVoiceCommandText('🎤 Écoute en cours...')
       }
       
       setRecognition(recognition)
+      setVoiceCommandsEnabled(true)
+    } else {
+      setVoiceCommandsEnabled(false)
+      setVoiceError('Reconnaissance vocale non supportée par votre navigateur.')
     }
   }, [])
 
-  // 🎤 Gestion des commandes vocales
+  // 🎤 Toggle de la reconnaissance vocale
+  const toggleSpeechRecognition = () => {
+    if (!recognition) {
+      setVoiceError('Reconnaissance vocale non disponible.')
+      return
+    }
+    
+    if (isListening) {
+      recognition.stop()
+      setIsListening(false)
+      setVoiceCommandText('')
+    } else {
+      try {
+        recognition.start()
+        sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+      } catch (error: any) {
+        console.error('Erreur lors du démarrage de la reconnaissance:', error)
+        if (error.message?.includes('already started')) {
+          // La reconnaissance est déjà en cours, on l'arrête d'abord
+          recognition.stop()
+          setTimeout(() => {
+            recognition.start()
+          }, 100)
+        } else {
+          setVoiceError('Impossible de démarrer la reconnaissance vocale.')
+          setTimeout(() => {
+            setVoiceError(null)
+          }, 3000)
+        }
+      }
+    }
+  }
+
+  // 🎤 Gestion des commandes vocales (version étendue)
   const handleVoiceCommand = (command: string) => {
-    if (command.includes('créer') || command.includes('nouvelle tâche')) {
+    const normalizedCommand = command.toLowerCase().trim()
+    let commandExecuted = false
+    
+    // 🔴 CRÉATION ET GESTION DE TÂCHES
+    if (normalizedCommand.includes('créer') && (normalizedCommand.includes('tâche') || normalizedCommand.includes('task'))) {
+      // Extraire le titre de la tâche si fourni
+      const titleMatch = normalizedCommand.match(/(?:créer|nouvelle).*?tâche[:\s]+(.+)/i) || 
+                         normalizedCommand.match(/(?:créer|nouvelle).*?task[:\s]+(.+)/i)
+      if (titleMatch && titleMatch[1]) {
+        setNewTask({ ...newTask, title: titleMatch[1].trim() })
+      }
       setShowCreateModal(true)
-    } else if (command.includes('calendrier')) {
+      sendNotification('✅ Commande exécutée', 'Création de tâche')
+      commandExecuted = true
+    }
+    
+    // 📋 NAVIGATION ET MODALS
+    else if (normalizedCommand.includes('calendrier') || normalizedCommand.includes('calendar')) {
       setShowCalendarModal(true)
-    } else if (command.includes('statistiques') || command.includes('stats')) {
+      sendNotification('✅ Commande exécutée', 'Calendrier ouvert')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('statistiques') || normalizedCommand.includes('stats') || normalizedCommand.includes('tableau de bord')) {
       fetchDashboardStats()
       setShowStatsModal(true)
-    } else if (command.includes('pause')) {
-      fetchBreaks()
-      setShowBreaksModal(true)
-    } else if (command.includes('notes') || command.includes('brain dump')) {
-      setShowNotesModal(true)
-    } else if (command.includes('templates')) {
+      sendNotification('✅ Commande exécutée', 'Statistiques ouvertes')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('templates') || normalizedCommand.includes('modèles')) {
       fetchTemplates()
       setShowTemplatesModal(true)
+      sendNotification('✅ Commande exécutée', 'Templates ouverts')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('tags') || normalizedCommand.includes('étiquettes')) {
+      setShowTagsModal(true)
+      sendNotification('✅ Commande exécutée', 'Tags ouverts')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('notes') || normalizedCommand.includes('brain dump') || normalizedCommand.includes('remarques')) {
+      setShowNotesModal(true)
+      sendNotification('✅ Commande exécutée', 'Notes ouvertes')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('pauses') || normalizedCommand.includes('pause')) {
+      fetchBreaks()
+      setShowBreaksModal(true)
+      sendNotification('✅ Commande exécutée', 'Pauses ouvertes')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('énergie') || normalizedCommand.includes('energy')) {
+      setShowEnergyModal(true)
+      sendNotification('✅ Commande exécutée', 'Niveau d\'énergie ouvert')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('rappels') || normalizedCommand.includes('reminders')) {
+      setShowRemindersModal(true)
+      sendNotification('✅ Commande exécutée', 'Rappels ouverts')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('timeline') || normalizedCommand.includes('chronologie')) {
+      setShowTimelineModal(true)
+      sendNotification('✅ Commande exécutée', 'Timeline ouverte')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('time awareness') || normalizedCommand.includes('conscience du temps')) {
+      setShowTimeAwarenessModal(true)
+      sendNotification('✅ Commande exécutée', 'Time Awareness ouvert')
+      commandExecuted = true
+    }
+    else if (normalizedCommand.includes('corbeille') || normalizedCommand.includes('trash') || normalizedCommand.includes('supprimées')) {
+      setShowTrashModal(true)
+      sendNotification('✅ Commande exécutée', 'Corbeille ouverte')
+      commandExecuted = true
+    }
+    
+    // 🚪 FERMETURE
+    else if (normalizedCommand.includes('fermer') || normalizedCommand.includes('close') || normalizedCommand.includes('annuler')) {
+      setShowCreateModal(false)
+      setShowEditModal(false)
+      setShowTaskDetailModal(false)
+      setShowCalendarModal(false)
+      setShowTemplatesModal(false)
+      setShowTagsModal(false)
+      setShowNotesModal(false)
+      setShowStatsModal(false)
+      setShowBreaksModal(false)
+      setShowEnergyModal(false)
+      setShowRemindersModal(false)
+      setShowTimelineModal(false)
+      setShowTimeAwarenessModal(false)
+      setShowTrashModal(false)
+      setShowMobileMenu(false)
+      sendNotification('✅ Commande exécutée', 'Modals fermées')
+      commandExecuted = true
+    }
+    
+    // ❓ AIDE
+    else if (normalizedCommand.includes('aide') || normalizedCommand.includes('help') || normalizedCommand.includes('commandes')) {
+      setShowVoiceHelpModal(true)
+      sendNotification('✅ Commande exécutée', 'Aide vocale ouverte')
+      commandExecuted = true
+    }
+    
+    // Si aucune commande n'a été reconnue
+    if (!commandExecuted) {
+      sendNotification('⚠️ Commande non reconnue', `"${command}" - Dites "aide" pour voir les commandes disponibles`)
+    } else if (voiceAudioFeedback) {
+      // Feedback audio optionnel (son de confirmation)
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const oscillator = audioContext.createOscillator()
+        const gainNode = audioContext.createGain()
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        
+        oscillator.frequency.value = 800 // Fréquence du son
+        oscillator.type = 'sine'
+        
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1)
+        
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.1)
+      } catch (error) {
+        // Ignorer les erreurs audio (navigateur peut bloquer)
+        console.debug('Audio feedback non disponible:', error)
+      }
     }
   }
 
@@ -418,10 +636,7 @@ export default function TaskflowPage() {
       // Ctrl/Cmd + Shift + V pour commandes vocales
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
         e.preventDefault()
-        if (recognition) {
-          recognition.start()
-          sendNotification('🎤 Écoute active', 'Parlez votre commande...')
-        }
+        toggleSpeechRecognition()
       }
       // Escape pour fermer les modals
       if (e.key === 'Escape') {
@@ -1868,17 +2083,23 @@ export default function TaskflowPage() {
               <div className="navbar-actions-primary">
                 {recognition && (
                   <button
-                    className="btn-nav btn-nav-secondary btn-nav-priority"
-                    onClick={() => {
-                      if (recognition) {
-                        recognition.start()
-                        sendNotification('🎤 Écoute active', 'Parlez votre commande...')
-                      }
-                    }}
+                    className={`btn-nav btn-nav-icon btn-nav-voice ${isListening ? 'listening' : ''}`}
+                    onClick={toggleSpeechRecognition}
                     title="Commandes vocales (Ctrl+Shift+V)"
+                    disabled={!voiceCommandsEnabled}
                   >
-                    <span>🎤</span>
-                    <span className="btn-label">Voix</span>
+                    <span className={isListening ? 'pulse-animation' : ''}>🎤</span>
+                    <span className="btn-label">{isListening ? 'Écoute...' : 'Voix'}</span>
+                    {voiceCommandText && (
+                      <span className="voice-transcript" title={voiceCommandText}>
+                        {voiceCommandText.length > 30 ? voiceCommandText.substring(0, 30) + '...' : voiceCommandText}
+                      </span>
+                    )}
+                    {voiceError && (
+                      <span className="voice-error" title={voiceError}>
+                        ⚠️ {voiceError}
+                      </span>
+                    )}
                   </button>
                 )}
                 <button 
@@ -2796,19 +3017,16 @@ export default function TaskflowPage() {
                 <span className="fab-icon">➕</span>
                 <span className="fab-label">Nouvelle tâche</span>
               </button>
-              {recognition && (
+              {voiceCommandsEnabled && (
                 <button 
-                  className="fab-item fab-item-secondary"
+                  className={`fab-item fab-item-secondary ${isListening ? 'listening' : ''}`}
                   onClick={() => {
-                    if (recognition) {
-                      recognition.start()
-                      sendNotification('🎤 Écoute active', 'Parlez votre commande...')
-                    }
+                    toggleSpeechRecognition()
                     setFabOpen(false)
                   }}
                 >
-                  <span className="fab-icon">🎤</span>
-                  <span className="fab-label">Commandes vocales</span>
+                  <span className={`fab-icon ${isListening ? 'pulse-animation' : ''}`}>🎤</span>
+                  <span className="fab-label">{isListening ? 'Écoute...' : 'Commandes vocales'}</span>
                 </button>
               )}
               <button 
@@ -5196,6 +5414,134 @@ export default function TaskflowPage() {
             </div>
             <div className="taskflow-modal-footer">
               <button className="btn-auth-secondary" onClick={() => setShowTimelineModal(false)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Aide Commandes Vocales */}
+      {showVoiceHelpModal && (
+        <div className="taskflow-modal-overlay" onClick={() => setShowVoiceHelpModal(false)}>
+          <div className="taskflow-modal taskflow-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title">🎤 Aide - Commandes Vocales</h3>
+              <button className="modal-close" onClick={() => setShowVoiceHelpModal(false)}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <div style={{ marginBottom: '24px' }}>
+                <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                  Utilisez les commandes vocales pour contrôler TaskFlow sans utiliser la souris. 
+                  Activez l'écoute avec le bouton 🎤 ou le raccourci <kbd>Ctrl+Shift+V</kbd>.
+                </p>
+                {!voiceCommandsEnabled && (
+                  <div style={{ 
+                    padding: '12px', 
+                    backgroundColor: 'var(--color-warning)', 
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    ⚠️ Les commandes vocales ne sont pas disponibles dans votre navigateur.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {/* Création et gestion */}
+                <div>
+                  <h4 style={{ marginBottom: '12px', color: 'var(--color-primary)' }}>📋 Création et Gestion</h4>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"créer tâche"</strong> ou <strong>"nouvelle tâche"</strong> - Ouvre le formulaire de création
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"créer tâche [titre]"</strong> - Crée une tâche avec le titre spécifié
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation */}
+                <div>
+                  <h4 style={{ marginBottom: '12px', color: 'var(--color-primary)' }}>🧭 Navigation</h4>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"calendrier"</strong> - Ouvre le calendrier
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"statistiques"</strong> ou <strong>"stats"</strong> - Ouvre les statistiques
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"templates"</strong> ou <strong>"modèles"</strong> - Ouvre les templates
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"tags"</strong> ou <strong>"étiquettes"</strong> - Ouvre la gestion des tags
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"notes"</strong> ou <strong>"brain dump"</strong> - Ouvre les notes
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"pauses"</strong> - Ouvre la gestion des pauses
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"énergie"</strong> - Ouvre le suivi d'énergie
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"rappels"</strong> - Ouvre les rappels
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"timeline"</strong> - Ouvre la timeline
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"time awareness"</strong> - Ouvre la conscience du temps
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"corbeille"</strong> - Ouvre la corbeille
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div>
+                  <h4 style={{ marginBottom: '12px', color: 'var(--color-primary)' }}>⚡ Actions</h4>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"fermer"</strong> ou <strong>"annuler"</strong> - Ferme tous les modals ouverts
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <strong>"aide"</strong> ou <strong>"help"</strong> - Ouvre cette aide
+                    </div>
+                  </div>
+                </div>
+
+                {/* Raccourcis clavier */}
+                <div>
+                  <h4 style={{ marginBottom: '12px', color: 'var(--color-primary)' }}>⌨️ Raccourcis Clavier</h4>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Ctrl+Shift+V</kbd> - Activer/désactiver l'écoute vocale
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Ctrl+K</kbd> - Créer une tâche
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Ctrl+C</kbd> - Ouvrir le calendrier
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Ctrl+S</kbd> - Ouvrir les statistiques
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Ctrl+N</kbd> - Ouvrir les notes
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                      <kbd>Escape</kbd> - Fermer les modals
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="taskflow-modal-footer">
+              <button className="btn-auth-secondary" onClick={() => setShowVoiceHelpModal(false)}>
                 Fermer
               </button>
             </div>

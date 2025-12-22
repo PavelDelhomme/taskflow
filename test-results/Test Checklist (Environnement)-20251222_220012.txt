@@ -1,0 +1,43 @@
+🧪 Vérification de TaskFlow ADHD...
+
+📦 Vérification des conteneurs Docker...
+[0;32m✅[0m Conteneur taskflow-web est démarré
+[0;32m✅[0m Conteneur taskflow-api est démarré
+[0;32m✅[0m Conteneur taskflow-db est démarré
+
+🌐 Vérification des services...
+[0;32m✅[0m Frontend (Web) est accessible
+[0;32m✅[0m API Backend est accessible
+[0;32m✅[0m API Health est accessible
+
+🗄️  Vérification de la base de données...
+[0;32m✅[0m Base de données est accessible
+[0;32m✅[0m Toutes les tables existent
+[0;32m✅[0m Colonne 'project' existe dans tasks
+[0;32m✅[0m Colonne 'due_date' existe dans tasks
+[0;32m✅[0m Colonnes de time tracking existent dans tasks
+
+📁 Vérification des fichiers...
+[0;32m✅[0m Migration project_to_tasks existe
+[0;32m✅[0m Script de test avec échéances existe
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Résumé:
+
+Pour tester l'application complètement:
+1. Ouvrez http://localhost:4000 dans votre navigateur
+2. Connectez-vous avec:
+   Email: test@delhomme.ovh
+   Mot de passe: 2H8'Z&sx@QW+X=v,dz[tnsv$F
+3. Suivez le guide TESTS.md pour les tests détaillés
+
+Commandes utiles:
+  make start          - Démarrer tous les services
+  make stop           - Arrêter tous les services
+  make restart        - Redémarrer tous les services
+  make migrate        - Appliquer les migrations
+  make test-data-due-dates - Générer les données de test
+  make logs           - Voir les logs
+  make status         - Voir le statut des conteneurs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

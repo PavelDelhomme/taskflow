@@ -19,6 +19,7 @@ help:
 	@echo "  make migrate => Applique les migrations de base de données"
 	@echo "  make test-check => Vérifie que tous les services sont opérationnels"
 	@echo "  make test-all => Lance tous les tests et analyse les résultats"
+	@echo "  make test-report => Génère un rapport détaillé des tests"
 	@echo "  make clean   => Nettoie Docker"
 	@echo ""
 	@echo "🌐 Accès:"
@@ -101,6 +102,10 @@ test-check:
 test-all:
 	@echo "🧪 Lancement de tous les tests..."
 	@./test-all.sh
+
+test-report:
+	@echo "📊 Génération du rapport de tests..."
+	@./generate-test-report.sh
 
 clean:
 	docker-compose down -v

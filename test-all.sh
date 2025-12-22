@@ -65,10 +65,16 @@ run_test_suite() {
     local success_count=$(grep -oP "✓ Succès: \K\d+" "$suite_file" 2>/dev/null | head -1 | tr -d '[:space:]' || echo "")
     local error_count=$(grep -oP "✗ Erreurs: \K\d+" "$suite_file" 2>/dev/null | head -1 | tr -d '[:space:]' || echo "")
     
+    # Nettoyer les valeurs de comptage
+    suite_success_check=$(echo "$suite_success_check" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    suite_errors_check=$(echo "$suite_errors_check" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    suite_success_std=$(echo "$suite_success_std" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    suite_errors_std=$(echo "$suite_errors_std" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    
     # Si on n'a pas trouvé les compteurs dans le résumé, utiliser les compteurs de symboles
     if [ -z "$success_count" ] || [ "$success_count" = "" ]; then
         # Utiliser le plus grand entre les deux formats
-        if [ "$suite_success_check" -gt "$suite_success_std" ]; then
+        if [ "${suite_success_check:-0}" -gt "${suite_success_std:-0}" ]; then
             success_count=$suite_success_check
         else
             success_count=$suite_success_std
@@ -76,7 +82,7 @@ run_test_suite() {
     fi
     if [ -z "$error_count" ] || [ "$error_count" = "" ]; then
         # Utiliser le plus grand entre les deux formats
-        if [ "$suite_errors_check" -gt "$suite_errors_std" ]; then
+        if [ "${suite_errors_check:-0}" -gt "${suite_errors_std:-0}" ]; then
             error_count=$suite_errors_check
         else
             error_count=$suite_errors_std
@@ -93,9 +99,9 @@ run_test_suite() {
     
     # Pour test-checklist, considérer comme réussi si pas d'erreurs ❌
     if echo "$suite_name" | grep -q "Checklist"; then
-        if [ "$suite_errors_check" -eq 0 ] && [ "$exit_code" -eq 0 ]; then
+        if [ "${suite_errors_check:-0}" -eq 0 ] && [ "$exit_code" -eq 0 ]; then
             # Tout est OK, compter les ✅ comme succès
-            success_count=$suite_success_check
+            success_count=${suite_success_check:-0}
             error_count=0
         fi
     fi
@@ -143,7 +149,11 @@ CHECKLIST_RESULT=$?
 run_test_suite "Tests Complets (API & Fonctionnalités)" "./test-complete.sh"
 COMPLETE_RESULT=$?
 
-# 3. Tests de Notifications
+# 3. Tests Étendus (Tests détaillés avec validation)
+run_test_suite "Tests Étendus (Validation & CRUD)" "./test-extended.sh"
+EXTENDED_RESULT=$?
+
+# 4. Tests de Notifications
 run_test_suite "Tests de Notifications" "./test-notifications.sh"
 NOTIFICATIONS_RESULT=$?
 
@@ -199,6 +209,12 @@ if [ $COMPLETE_RESULT -eq 0 ]; then
     echo -e "  ${GREEN}✅ Tests Complets${NC} - API et fonctionnalités opérationnelles"
 else
     echo -e "  ${RED}❌ Tests Complets${NC} - Certains tests ont échoué"
+fi
+
+if [ $EXTENDED_RESULT -eq 0 ]; then
+    echo -e "  ${GREEN}✅ Tests Étendus${NC} - Validation et CRUD complets"
+else
+    echo -e "  ${RED}❌ Tests Étendus${NC} - Certains tests ont échoué"
 fi
 
 if [ $NOTIFICATIONS_RESULT -eq 0 ]; then

@@ -22,6 +22,7 @@ help:
 	@echo "  make test-all-isolated => Lance les tests dans un environnement isolé (ne touche pas vos données)"
 	@echo "  make test-report => Génère un rapport détaillé des tests"
 	@echo "  make test-env-stop => Arrête et nettoie l'environnement de test"
+	@echo "  make test-voice => Teste les commandes vocales et l'interface"
 	@echo "  make clean   => Nettoie Docker"
 	@echo ""
 	@echo "🌐 Accès:"
@@ -96,6 +97,10 @@ clean-cache:
 	@sudo rm -rf taskflow-web/.next 2>/dev/null || true
 	@docker exec taskflow-web rm -rf /app/.next 2>/dev/null || true
 	@echo "✅ Cache Next.js nettoyé !"
+
+test-voice:
+	@echo "🎤 Tests des commandes vocales..."
+	@./test-voice-commands.sh
 
 test-check:
 	@echo "🧪 Vérification de l'environnement..."

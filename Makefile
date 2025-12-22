@@ -109,8 +109,14 @@ test-all-isolated:
 	@echo "🧪 Configuration de l'environnement de test isolé..."
 	@./setup-test-env.sh
 	@echo ""
+	@echo "⏳ Attente que l'API de test soit complètement prête..."
+	@sleep 15
 	@echo "🧪 Lancement de tous les tests dans l'environnement isolé..."
-	@TEST_API_URL=http://localhost:4003 ./test-all.sh
+	@TEST_API_URL=http://localhost:4003 ./test-all.sh || (echo ""; echo "🛑 Arrêt de l'environnement de test..."; docker-compose -f docker-compose.test.yml down -v; exit 1)
+	@echo ""
+	@echo "🛑 Arrêt de l'environnement de test..."
+	@docker-compose -f docker-compose.test.yml down -v
+	@echo "✅ Environnement de test nettoyé"
 
 test-report:
 	@echo "📊 Génération du rapport de tests..."

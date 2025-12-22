@@ -1,0 +1,72 @@
+🧪 ==========================================
+🧪 Tests Étendus TaskFlow ADHD
+🧪 ==========================================
+
+[0;34m🔗 API URL: http://localhost:4001[0m
+
+🔐 1. Tests d'authentification étendus...
+  Testing Login avec mauvais mot de passe... [0;32m✓ OK[0m (HTTP 401)
+  Testing Login avec email invalide... [0;32m✓ OK[0m (HTTP 401)
+
+📋 2. Tests CRUD Tâches...
+  Testing GET /tasks/{id}... [0;32m✓ OK[0m (HTTP 200)
+  Testing PATCH /tasks/{id}... [0;31m✗ FAIL[0m (HTTP 405, expected 200)
+  Testing DELETE /tasks/{id}... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /tasks (données invalides)... [0;31m✗ FAIL[0m (HTTP 200, expected 422)
+
+🔄 3. Tests Workflows...
+  Testing GET /workflows... [0;32m✓ OK[0m (HTTP 200)
+  Testing DELETE /workflows/{id}... [0;32m✓ OK[0m (HTTP 200)
+
+📝 4. Tests Templates...
+  Testing GET /templates... [0;32m✓ OK[0m (HTTP 200)
+
+🏷️  5. Tests Tags...
+  Testing GET /tags... [0;32m✓ OK[0m (HTTP 200)
+  Testing DELETE /tags/{id}... [0;32m✓ OK[0m (HTTP 200)
+
+📄 6. Tests Notes...
+  Testing GET /notes... [0;32m✓ OK[0m (HTTP 200)
+  Testing DELETE /notes/{id}... [0;32m✓ OK[0m (HTTP 200)
+
+📊 7. Tests Statistiques...
+  Testing GET /stats/dashboard... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /stats/time-comparison... [0;32m✓ OK[0m (HTTP 200)
+
+⚡ 8. Tests Energy...
+  Testing GET /energy/current... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /energy/logs... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /energy/log... [0;32m✓ OK[0m (HTTP 200)
+
+☕ 9. Tests Breaks...
+  Testing GET /breaks/today... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /breaks/start... [0;32m✓ OK[0m (HTTP 200)
+
+🔔 10. Tests Reminders...
+  Testing GET /reminders/pending... [0;32m✓ OK[0m (HTTP 200)
+  Testing DELETE /reminders/{id}... [0;32m✓ OK[0m (HTTP 200)
+
+🧠 11. Tests Attention...
+  Testing GET /attention/stats... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/recommendations... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/history... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/patterns... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /attention/session... [0;32m✓ OK[0m (HTTP 200)
+
+🤖 12. Tests IA...
+  Testing GET /ai/suggest-next-task... [0;31m✗ FAIL[0m (HTTP 500, expected 200)
+  Testing GET /ai/suggest-break... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /ai/suggest-task-timing... [0;31m✗ FAIL[0m (HTTP 500, expected 200)
+
+🔒 13. Tests d'autorisation...
+  Testing GET /tasks (sans token)... [0;32m✓ OK[0m (HTTP 403)
+  Testing GET /tasks (token invalide)... [0;32m✓ OK[0m (HTTP 401)
+
+📊 ==========================================
+📊 Résumé des tests étendus
+📊 ==========================================
+  [0;32m✓ Succès: 28[0m
+  [0;31m✗ Erreurs: 4[0m
+  [0;34mTotal: 32[0m
+
+[0;31m❌ Certains tests étendus ont échoué.[0m

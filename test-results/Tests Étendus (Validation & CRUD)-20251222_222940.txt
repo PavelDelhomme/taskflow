@@ -1,0 +1,8 @@
+🧪 ==========================================
+🧪 Tests Étendus TaskFlow ADHD
+🧪 ==========================================
+
+[0;34m🔗 API URL: http://localhost:4003[0m
+
+🔐 1. Tests d'authentification étendus...
+  [0;31m✗ Échec de l'authentification[0m

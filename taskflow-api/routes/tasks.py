@@ -190,10 +190,9 @@ async def update_task(task_id: int, task_data: TaskUpdate, current_user = Depend
             
             # Auto-timestamps selon status
             if task_data.status == "in_progress":
-                if not old_started_at:
-                    update_fields.append("started_at = CURRENT_TIMESTAMP")
                 # Si on passe de standby/blocked/todo à in_progress, on démarre le timer
-                if old_status in ['standby', 'blocked', 'todo', 'review']:
+                # Vérifier si started_at n'existe pas déjà pour éviter la duplication
+                if old_status in ['standby', 'blocked', 'todo', 'review'] and not old_started_at:
                     update_fields.append("started_at = CURRENT_TIMESTAMP")
             elif task_data.status == "done":
                 update_fields.append("completed_at = CURRENT_TIMESTAMP")

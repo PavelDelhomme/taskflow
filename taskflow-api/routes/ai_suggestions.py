@@ -105,7 +105,9 @@ async def suggest_next_task(current_user = Depends(get_current_user)):
             # Si attention élevée (>70) : suggérer tâches difficiles/complexes
             # Si attention moyenne (40-70) : suggérer tâches moyennes
             # Si attention faible (<40) : suggérer tâches simples
-            estimated_time = task.get('estimated_time_minutes', 60)
+            estimated_time = task.get('estimated_time_minutes')
+            if estimated_time is None:
+                estimated_time = 60  # Valeur par défaut
             
             if current_attention_score >= 70:
                 # Attention élevée : favoriser les tâches longues/complexes
@@ -320,7 +322,9 @@ async def suggest_task_timing(task_id: int, current_user = Depends(get_current_u
         best_hours = [p['context_hour'] for p in hourly_patterns[:3] if p['avg_score'] >= 60]
         
         # Analyser le type de tâche
-        estimated_time = task.get('estimated_time_minutes', 60)
+        estimated_time = task.get('estimated_time_minutes')
+        if estimated_time is None:
+            estimated_time = 60  # Valeur par défaut
         priority = task.get('priority', 'medium')
         
         # Suggérer selon le type de tâche

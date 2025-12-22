@@ -46,7 +46,10 @@ async def suggest_next_task(current_user = Depends(get_current_user)):
             LIMIT 1
         """, (user_id,))
         best_hour_data = cursor.fetchone()
-        best_hour = best_hour_data['context_hour'] if best_hour_data and best_hour_data.get('context_hour') is not None else current_hour
+        if best_hour_data and best_hour_data.get('context_hour') is not None:
+            best_hour = best_hour_data['context_hour']
+        else:
+            best_hour = current_hour
         
         # 3. Récupérer le niveau d'énergie actuel
         cursor.execute("""
@@ -57,7 +60,10 @@ async def suggest_next_task(current_user = Depends(get_current_user)):
             LIMIT 1
         """, (user_id,))
         energy_data = cursor.fetchone()
-        current_energy = energy_data['energy_level'] if energy_data and energy_data.get('energy_level') is not None else 3
+        if energy_data and energy_data.get('energy_level') is not None:
+            current_energy = energy_data['energy_level']
+        else:
+            current_energy = 3
         
         # 4. Récupérer les tâches disponibles
         cursor.execute("""

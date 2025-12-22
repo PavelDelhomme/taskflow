@@ -292,7 +292,15 @@ echo ""
 echo "🤖 12. Tests IA..."
 test_endpoint_detailed "GET /ai/suggest-next-task" "GET" "$API_URL/ai/suggest-next-task" "$TOKEN" "" "200"
 test_endpoint_detailed "GET /ai/suggest-break" "GET" "$API_URL/ai/suggest-break" "$TOKEN" "" "200"
-test_endpoint_detailed "GET /ai/suggest-task-timing" "GET" "$API_URL/ai/suggest-task-timing" "$TOKEN" "" "200"
+# suggest-task-timing nécessite task_id, créer une tâche d'abord
+TEST_TASK='{"title":"Test Timing Task","description":"Test","status":"todo","priority":"medium"}'
+TIMING_TASK_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d "$TEST_TASK" "$API_URL/tasks/")
+TIMING_TASK_ID=$(echo "$TIMING_TASK_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id', ''))" 2>/dev/null)
+if [ -n "$TIMING_TASK_ID" ] && [ "$TIMING_TASK_ID" != "None" ] && [ "$TIMING_TASK_ID" != "" ]; then
+  test_endpoint_detailed "GET /ai/suggest-task-timing" "GET" "$API_URL/ai/suggest-task-timing?task_id=$TIMING_TASK_ID" "$TOKEN" "" "200"
+  # Nettoyer
+  curl -s -X DELETE -H "Authorization: Bearer $TOKEN" "$API_URL/tasks/$TIMING_TASK_ID" > /dev/null
+fi
 
 echo ""
 

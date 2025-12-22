@@ -6,12 +6,19 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ### 🔴 Priorité Haute
 
-- [ ] **Rappels contextuels intelligents**
-  - [ ] Rappels basés sur le contexte (heure, localisation)
-  - [ ] Rappels progressifs (5 min avant, au moment, 5 min après)
-  - [ ] Rappels visuels + sonores + notifications push
-  - [ ] Option "Snooze" intelligente
-  - [ ] Rappels pour tâches bloquées depuis X jours
+- [x] **Rappels contextuels intelligents** ✅
+  - [x] Rappels basés sur le contexte (heure, localisation) (API)
+  - [x] Rappels progressifs (1h avant, 30min avant, au moment) (API)
+  - [x] Rappels visuels + sonores + notifications push (Frontend)
+  - [x] Option "Snooze" intelligente (API + Frontend)
+  - [x] Rappels pour tâches bloquées depuis X jours (API)
+  - [x] **Notifications en arrière-plan** (Service Worker) ✅
+    - [x] Service Worker pour notifications même si l'app est fermée
+    - [x] Planification des notifications programmées
+    - [x] Synchronisation périodique des rappels depuis l'API
+    - [x] Stockage du token d'authentification dans le Service Worker
+    - [x] Background Sync pour synchroniser les rappels
+    - [x] IndexedDB pour stocker les notifications programmées
 
 - [x] **Breakdown automatique des tâches** ✅
   - [x] Bouton "Décomposer" sur une tâche (Frontend)
@@ -428,7 +435,43 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 - [ ] **Contraste** : Contraste suffisant pour la lisibilité
 - [ ] **Screen readers** : Compatible avec les lecteurs d'écran
 
-#### 17. Tests de Sécurité
+#### 17. Tests de Notifications en Arrière-plan
+- [ ] **Service Worker** :
+  - [ ] Service Worker s'enregistre correctement au chargement
+  - [ ] Service Worker est actif (vérifier dans DevTools)
+  - [ ] Service Worker accessible à `/sw.js`
+  - [ ] Service Worker contient les fonctions nécessaires (scheduleNotification, syncRemindersFromAPI)
+- [ ] **Permissions** :
+  - [ ] Permission de notification demandée au premier chargement
+  - [ ] Permission peut être accordée/refusée
+  - [ ] État de permission affiché correctement dans l'UI
+- [ ] **Planification des notifications** :
+  - [ ] Notification peut être programmée pour une date/heure future
+  - [ ] Notification programmée stockée dans IndexedDB
+  - [ ] Notification s'affiche à l'heure prévue même si l'app est fermée
+  - [ ] Notification peut être annulée avant son déclenchement
+- [ ] **Synchronisation des rappels** :
+  - [ ] Rappels synchronisés depuis l'API au chargement
+  - [ ] Rappels futurs programmés automatiquement
+  - [ ] Background Sync fonctionne (si supporté)
+  - [ ] Synchronisation périodique toutes les minutes
+- [ ] **Notifications en arrière-plan** :
+  - [ ] Notification s'affiche quand l'app est fermée
+  - [ ] Clic sur notification ouvre/réactive l'application
+  - [ ] Actions de notification (Ouvrir/Fermer) fonctionnent
+  - [ ] Plusieurs notifications peuvent être programmées simultanément
+- [ ] **Token d'authentification** :
+  - [ ] Token stocké dans le Service Worker après connexion
+  - [ ] Token utilisé pour synchroniser les rappels depuis l'API
+  - [ ] Token mis à jour lors de la reconnexion
+- [ ] **Tests manuels** :
+  - [ ] Créer un rappel avec date/heure dans 2-5 minutes
+  - [ ] Fermer complètement l'onglet du navigateur
+  - [ ] Attendre l'heure du rappel
+  - [ ] Vérifier que la notification apparaît
+  - [ ] Vérifier que le clic sur la notification ouvre l'app
+
+#### 18. Tests de Sécurité
 - [ ] **Authentification** : Accès non autorisé bloqué
 - [ ] **Tokens** : Tokens JWT expirent correctement
 - [ ] **Validation** : Toutes les entrées sont validées
@@ -439,8 +482,9 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 ### 📊 Résumé des Tests
 
 **Tests Automatisés** : 27 tests (via `test-complete.sh`)  
+**Tests Notifications** : 20 tests (via `test-notifications.sh` + manuels)  
 **Tests Manuels** : ~80 tests à effectuer  
-**Total** : ~107 tests à compléter
+**Total** : ~127 tests à compléter
 
 **Statut actuel** : ✅ 27/27 tests automatisés passent  
 **Prochaine étape** : Effectuer les tests manuels et documenter les résultats

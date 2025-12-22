@@ -6,6 +6,14 @@ import './utils/filterConsoleLogs'
 import AuthPage from './components/AuthPage'
 import CalendarView from './components/CalendarView'
 import { User, Task, Workflow, AuthPageProps } from './types'
+import {
+  initNotificationSystem,
+  scheduleNotification,
+  scheduleRemindersNotifications,
+  storeAuthTokenInSW,
+  syncRemindersFromAPI,
+  sendNotification as sendNotificationUtil
+} from './utils/notifications'
 
 export default function TaskflowPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -267,7 +275,16 @@ export default function TaskflowPage() {
       fetchTasks(savedToken)
       fetchWorkflows(savedToken)
       checkForReminders(savedToken)
-      initNotifications()
+      
+      // Initialiser le système de notifications (Service Worker + permissions)
+      initNotifications().then(async () => {
+        // Stocker le token dans le Service Worker pour les notifications en arrière-plan
+        await storeAuthTokenInSW(savedToken)
+        
+        // Synchroniser les rappels avec le Service Worker
+        await syncRemindersFromAPI()
+      })
+      
       // Charger les données des nouvelles fonctionnalités
       fetchTemplates()
       fetchTags()
@@ -589,22 +606,30 @@ export default function TaskflowPage() {
   }, [currentFocusTask, focusStartTime, taskSwitchCount, energyLevel, token])
 
   const initNotifications = async () => {
-    if ('Notification' in window && 'serviceWorker' in navigator) {
-      const permission = await Notification.requestPermission()
-      setNotificationsEnabled(permission === 'granted')
+    try {
+      const { swRegistered, permissionGranted } = await initNotificationSystem()
+      setNotificationsEnabled(permissionGranted)
+      
+      if (swRegistered && permissionGranted) {
+        console.log('✅ Système de notifications en arrière-plan activé')
+        
+        // Stocker le token dans le Service Worker si disponible
+        if (token) {
+          await storeAuthTokenInSW(token)
+        }
+        
+        // Synchroniser les rappels depuis l'API
+        await syncRemindersFromAPI()
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des notifications:', error)
     }
   }
 
   const sendNotification = (title: string, body: string, options?: NotificationOptions) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, {
-        body,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: 'taskflow-reminder',
-        ...options
-      })
-    }
+    // Utiliser la fonction utilitaire qui gère à la fois les notifications immédiates
+    // et la programmation via Service Worker
+    sendNotificationUtil(title, body, options)
   }
 
   // 🎨 Feedback visuel pour les actions
@@ -1035,15 +1060,23 @@ export default function TaskflowPage() {
         const data = await response.json()
         setPendingReminders(data)
         
-        // Afficher les notifications pour les rappels
+        // Programmer les notifications pour tous les rappels futurs (même si l'app est fermée)
+        await scheduleRemindersNotifications(data, API_URL)
+        
+        // Afficher immédiatement les notifications pour les rappels déjà dus
+        const now = Date.now()
         data.forEach((reminder: any) => {
-          if (reminder.task_id) {
-            const task = tasks.find(t => t.id === reminder.task_id)
-            if (task) {
-              sendNotification('🔔 Rappel', `Tâche: ${task.title}`, { tag: `reminder-${reminder.id}` })
+          const reminderTime = new Date(reminder.reminder_time).getTime()
+          if (reminderTime <= now) {
+            // Rappel déjà dû, notification immédiate
+            if (reminder.task_id) {
+              const task = tasks.find(t => t.id === reminder.task_id)
+              if (task) {
+                sendNotification('🔔 Rappel', `Tâche: ${task.title}`, { tag: `reminder-${reminder.id}` })
+              }
+            } else {
+              sendNotification('🔔 Rappel', 'Vous avez un rappel', { tag: `reminder-${reminder.id}` })
             }
-          } else {
-            sendNotification('🔔 Rappel', 'Vous avez un rappel', { tag: `reminder-${reminder.id}` })
           }
         })
       }
@@ -1173,7 +1206,13 @@ export default function TaskflowPage() {
         fetchTasks(data.access_token)
         fetchWorkflows(data.access_token)
         checkForReminders(data.access_token)
-        initNotifications()
+        
+        // Initialiser le système de notifications et stocker le token
+        initNotifications().then(async () => {
+          await storeAuthTokenInSW(data.access_token)
+          await syncRemindersFromAPI()
+        })
+        
         // Charger les données des nouvelles fonctionnalités
         fetchTemplates()
         fetchTags()

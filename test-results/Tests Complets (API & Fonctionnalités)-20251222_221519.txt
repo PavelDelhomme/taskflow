@@ -1,0 +1,60 @@
+🧪 ==========================================
+🧪 Tests complets TaskFlow ADHD
+🧪 ==========================================
+
+📦 1. Vérification Docker...
+[0;32m✓ Docker fonctionne[0m
+
+🐳 2. Vérification des conteneurs...
+  [0;32m✓[0m taskflow-api est en cours d'exécution
+  [0;32m✓[0m taskflow-web est en cours d'exécution
+  [0;32m✓[0m taskflow-db est en cours d'exécution
+
+⏳ 3. Attente que les services soient prêts...
+🏥 4. Tests de santé de l'API...
+  Testing Health Check... [0;32m✓ OK[0m (HTTP 200)
+  Testing Root API... [0;32m✓ OK[0m (HTTP 200)
+
+🔐 5. Tests d'authentification...
+  [0;32m✓ Authentification réussie[0m
+
+📋 6. Tests des endpoints de base...
+  Testing GET /tasks... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /workflows... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /stats/dashboard... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /templates... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /tags... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /notes... [0;32m✓ OK[0m (HTTP 200)
+
+🧠 7. Tests du mécanisme d'attention...
+  Testing GET /attention/stats... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/recommendations... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/history... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /attention/patterns... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /attention/session... [0;32m✓ OK[0m (HTTP 200)
+
+🤖 8. Tests de l'IA (suggestions basées sur l'attention)...
+  Testing GET /ai/suggest-next-task... [0;31m✗ FAIL[0m (HTTP 500)
+  Testing GET /ai/suggest-break... [0;32m✓ OK[0m (HTTP 200)
+
+⚡ 9. Tests des autres fonctionnalités...
+  Testing GET /energy/current... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /energy/logs... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /breaks/today... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /reminders/pending... [0;32m✓ OK[0m (HTTP 200)
+  Testing GET /stats/time-comparison... [0;32m✓ OK[0m (HTTP 200)
+
+🌐 10. Test de l'application web...
+  [0;32m✓ Application web accessible[0m (HTTP 200)
+
+🗄️  11. Vérification de la base de données...
+  [0;32m✓ Base de données accessible[0m
+  [0;32m✓ Table attention_logs existe[0m
+
+📊 ==========================================
+📊 Résumé des tests
+📊 ==========================================
+  [0;32m✓ Succès: 26[0m
+  [0;31m✗ Erreurs: 1[0m
+
+[0;31m❌ Certains tests ont échoué. Vérifiez les erreurs ci-dessus.[0m

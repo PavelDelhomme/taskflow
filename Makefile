@@ -19,7 +19,9 @@ help:
 	@echo "  make migrate => Applique les migrations de base de données"
 	@echo "  make test-check => Vérifie que tous les services sont opérationnels"
 	@echo "  make test-all => Lance tous les tests et analyse les résultats"
+	@echo "  make test-all-isolated => Lance les tests dans un environnement isolé (ne touche pas vos données)"
 	@echo "  make test-report => Génère un rapport détaillé des tests"
+	@echo "  make test-env-stop => Arrête et nettoie l'environnement de test"
 	@echo "  make clean   => Nettoie Docker"
 	@echo ""
 	@echo "🌐 Accès:"
@@ -103,9 +105,21 @@ test-all:
 	@echo "🧪 Lancement de tous les tests..."
 	@./test-all.sh
 
+test-all-isolated:
+	@echo "🧪 Configuration de l'environnement de test isolé..."
+	@./setup-test-env.sh
+	@echo ""
+	@echo "🧪 Lancement de tous les tests dans l'environnement isolé..."
+	@TEST_API_URL=http://localhost:4003 ./test-all.sh
+
 test-report:
 	@echo "📊 Génération du rapport de tests..."
 	@./generate-test-report.sh
+
+test-env-stop:
+	@echo "🛑 Arrêt de l'environnement de test..."
+	@docker-compose -f docker-compose.test.yml down -v
+	@echo "✅ Environnement de test arrêté et nettoyé"
 
 clean:
 	docker-compose down -v

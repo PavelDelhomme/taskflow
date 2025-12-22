@@ -1,0 +1,68 @@
+# ============================================================================
+# 🧪 TaskFlow ADHD - Environnement de Test Isolé
+# Base de données séparée pour les tests, ne touche pas aux données de production
+# ============================================================================
+
+services:
+  # 🔥 API FastAPI TaskFlow ADHD (Test)
+  taskflow-api-test:
+    build:
+      context: ./taskflow-api
+      dockerfile: Dockerfile
+    container_name: taskflow-api-test
+    ports:
+      - "4003:8000"  # Port différent pour les tests
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://taskflow:taskflow123@taskflow-db-test:5432/taskflow_adhd_test
+      - SECRET_KEY=taskflow-test-secret-key-2025
+      - CORS_ORIGINS=http://localhost:4000,http://taskflow-web:3000
+    volumes:
+      - ./taskflow-api:/app
+      - taskflow_api_test_data:/app/data
+    networks:
+      - taskflow-test-network
+    depends_on:
+      - taskflow-db-test
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 🗄️ Base de données PostgreSQL TaskFlow (Test)
+  taskflow-db-test:
+    image: postgres:15-alpine
+    container_name: taskflow-db-test
+    ports:
+      - "4004:5432"  # Port différent pour les tests
+    environment:
+      - POSTGRES_DB=taskflow_adhd_test
+      - POSTGRES_USER=taskflow
+      - POSTGRES_PASSWORD=taskflow123
+    volumes:
+      - taskflow_postgres_test_data:/var/lib/postgresql/data
+      - ./taskflow-api/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - taskflow-test-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow_adhd_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  taskflow-test-network:
+    name: taskflow-test-network
+    driver: bridge
+
+volumes:
+  taskflow_postgres_test_data:
+    name: taskflow_postgres_test_data
+  taskflow_api_test_data:
+    name: taskflow_api_test_data
+

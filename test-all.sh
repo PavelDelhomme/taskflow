@@ -53,25 +53,52 @@ run_test_suite() {
         exit_code=1
     fi
     
-    # Analyser les résultats
-    local suite_success=$(grep -c "✓" "$suite_file" 2>/dev/null || echo "0")
-    local suite_errors=$(grep -c "✗" "$suite_file" 2>/dev/null || echo "0")
+    # Analyser les résultats - compter les succès et erreurs
+    # Pour test-checklist.sh, utiliser ✅ et ❌
+    # Pour les autres, utiliser ✓ Succès: et ✗ Erreurs:
+    local suite_success_check=$(grep -c "✅" "$suite_file" 2>/dev/null || echo "0")
+    local suite_errors_check=$(grep -c "❌" "$suite_file" 2>/dev/null || echo "0")
+    local suite_success_std=$(grep -c "✓" "$suite_file" 2>/dev/null || echo "0")
+    local suite_errors_std=$(grep -c "✗" "$suite_file" 2>/dev/null || echo "0")
     
-    # Extraire les détails depuis le résumé
-    local success_count=$(grep -oP "✓ Succès: \K\d+" "$suite_file" 2>/dev/null || echo "")
-    local error_count=$(grep -oP "✗ Erreurs: \K\d+" "$suite_file" 2>/dev/null || echo "")
+    # Extraire les détails depuis le résumé standardisé
+    local success_count=$(grep -oP "✓ Succès: \K\d+" "$suite_file" 2>/dev/null | head -1 | tr -d '[:space:]' || echo "")
+    local error_count=$(grep -oP "✗ Erreurs: \K\d+" "$suite_file" 2>/dev/null | head -1 | tr -d '[:space:]' || echo "")
     
     # Si on n'a pas trouvé les compteurs dans le résumé, utiliser les compteurs de symboles
     if [ -z "$success_count" ] || [ "$success_count" = "" ]; then
-        success_count=$suite_success
+        # Utiliser le plus grand entre les deux formats
+        if [ "$suite_success_check" -gt "$suite_success_std" ]; then
+            success_count=$suite_success_check
+        else
+            success_count=$suite_success_std
+        fi
     fi
     if [ -z "$error_count" ] || [ "$error_count" = "" ]; then
-        error_count=$suite_errors
+        # Utiliser le plus grand entre les deux formats
+        if [ "$suite_errors_check" -gt "$suite_errors_std" ]; then
+            error_count=$suite_errors_check
+        else
+            error_count=$suite_errors_std
+        fi
     fi
     
-    # S'assurer que les valeurs sont numériques
+    # S'assurer que les valeurs sont numériques et nettoyées
+    success_count=$(echo "$success_count" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    error_count=$(echo "$error_count" | tr -d '[:space:]' | grep -oE '^[0-9]+$' || echo "0")
+    
+    # Valeurs par défaut si vides
     success_count=${success_count:-0}
     error_count=${error_count:-0}
+    
+    # Pour test-checklist, considérer comme réussi si pas d'erreurs ❌
+    if echo "$suite_name" | grep -q "Checklist"; then
+        if [ "$suite_errors_check" -eq 0 ] && [ "$exit_code" -eq 0 ]; then
+            # Tout est OK, compter les ✅ comme succès
+            success_count=$suite_success_check
+            error_count=0
+        fi
+    fi
     
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -91,7 +118,9 @@ run_test_suite() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     
-    # Ajouter au total
+    # Ajouter au total (s'assurer que les valeurs sont numériques)
+    success_count=$((success_count + 0))
+    error_count=$((error_count + 0))
     TOTAL_TESTS=$((TOTAL_TESTS + success_count + error_count))
     TOTAL_SUCCESS=$((TOTAL_SUCCESS + success_count))
     TOTAL_ERRORS=$((TOTAL_ERRORS + error_count))

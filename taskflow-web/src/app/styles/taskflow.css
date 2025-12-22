@@ -1383,3 +1383,32 @@ kbd {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   color: var(--color-text);
 }
+
+/* Menu vocal dans le mobile menu */
+.mobile-menu-category-voice {
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, rgba(var(--color-primary-rgb, 13, 110, 253), 0.1) 100%);
+}
+
+.voice-status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  margin-left: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.mobile-menu-item-active {
+  background: var(--color-primary) !important;
+  color: white !important;
+}
+
+.mobile-menu-item-active .mobile-menu-icon,
+.mobile-menu-item-active .mobile-menu-label {
+  color: white !important;
+}

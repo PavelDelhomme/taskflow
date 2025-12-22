@@ -388,25 +388,47 @@ export default function TaskflowPage() {
         
         switch (event.error) {
           case 'no-speech':
-            setVoiceError('Aucune parole détectée. Réessayez.')
+            setVoiceError('Aucune parole détectée. Parlez plus fort ou vérifiez votre microphone.')
+            sendNotification('⚠️ Commande vocale', 'Aucune parole détectée. Réessayez.')
             break
           case 'audio-capture':
-            setVoiceError('Microphone non disponible. Vérifiez vos permissions.')
+            setVoiceError('Microphone non disponible. Vérifiez vos permissions et que le micro n\'est pas utilisé ailleurs.')
+            sendNotification('⚠️ Commande vocale', 'Microphone non disponible. Vérifiez vos permissions.')
             break
           case 'not-allowed':
-            setVoiceError('Permission microphone refusée. Activez-la dans les paramètres.')
+            setVoiceError('Permission microphone refusée. Cliquez sur 🔒 dans la barre d\'adresse pour autoriser.')
+            sendNotification('⚠️ Commande vocale', 'Permission microphone requise. Autorisez dans les paramètres.')
+            // Essayer de redemander la permission
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                  setVoiceError(null)
+                  sendNotification('✅ Permission accordée', 'Vous pouvez maintenant utiliser les commandes vocales.')
+                })
+                .catch(() => {
+                  // Permission toujours refusée
+                })
+            }
             break
           case 'network':
-            setVoiceError('Erreur réseau. Vérifiez votre connexion.')
+            setVoiceError('Erreur réseau. La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
+            sendNotification('⚠️ Commande vocale', 'Erreur réseau. Vérifiez votre connexion Internet.')
+            // La reconnaissance vocale nécessite Internet, on ne peut pas continuer
+            break
+          case 'aborted':
+            // L'utilisateur a arrêté manuellement, pas d'erreur à afficher
             break
           default:
-            setVoiceError(`Erreur: ${event.error}`)
+            setVoiceError(`Erreur: ${event.error}. Réessayez ou consultez l'aide.`)
+            sendNotification('⚠️ Commande vocale', `Erreur: ${event.error}`)
         }
         
-        // Réinitialiser après affichage de l'erreur
-        setTimeout(() => {
-          setVoiceError(null)
-        }, 3000)
+        // Réinitialiser après affichage de l'erreur (sauf si c'est juste un arrêt)
+        if (event.error !== 'aborted') {
+          setTimeout(() => {
+            setVoiceError(null)
+          }, 5000) // Plus long pour les erreurs importantes
+        }
       }
       
       // Quand la reconnaissance se termine
@@ -429,10 +451,37 @@ export default function TaskflowPage() {
     }
   }, [])
 
+  // 🎤 Vérifier la disponibilité du microphone
+  const checkMicrophoneAvailability = async (): Promise<boolean> => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setVoiceError('API microphone non disponible dans ce navigateur.')
+      return false
+    }
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Libérer le stream immédiatement, on voulait juste vérifier
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (error: any) {
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setVoiceError('Permission microphone requise. Cliquez sur 🔒 dans la barre d\'adresse.')
+        sendNotification('⚠️ Permission requise', 'Autorisez l\'accès au microphone pour utiliser les commandes vocales.')
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setVoiceError('Aucun microphone détecté. Vérifiez que votre microphone est connecté.')
+        sendNotification('⚠️ Microphone introuvable', 'Vérifiez que votre microphone est connecté et fonctionne.')
+      } else {
+        setVoiceError(`Erreur microphone: ${error.message}`)
+      }
+      return false
+    }
+  }
+
   // 🎤 Toggle de la reconnaissance vocale
-  const toggleSpeechRecognition = () => {
+  const toggleSpeechRecognition = async () => {
     if (!recognition) {
-      setVoiceError('Reconnaissance vocale non disponible.')
+      setVoiceError('Reconnaissance vocale non disponible dans ce navigateur.')
+      sendNotification('⚠️ Non supporté', 'Utilisez Chrome, Edge ou Safari pour les commandes vocales.')
       return
     }
     
@@ -440,23 +489,35 @@ export default function TaskflowPage() {
       recognition.stop()
       setIsListening(false)
       setVoiceCommandText('')
+      sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
     } else {
+      // Vérifier le microphone avant de démarrer
+      const micAvailable = await checkMicrophoneAvailability()
+      if (!micAvailable) {
+        return // L'erreur est déjà affichée par checkMicrophoneAvailability
+      }
+      
       try {
         recognition.start()
-        sendNotification('🎤 Écoute active', 'Parlez votre commande...')
+        sendNotification('🎤 Écoute active', 'Parlez votre commande maintenant...')
       } catch (error: any) {
         console.error('Erreur lors du démarrage de la reconnaissance:', error)
-        if (error.message?.includes('already started')) {
+        if (error.message?.includes('already started') || error.message?.includes('started')) {
           // La reconnaissance est déjà en cours, on l'arrête d'abord
           recognition.stop()
           setTimeout(() => {
-            recognition.start()
-          }, 100)
+            try {
+              recognition.start()
+            } catch (e) {
+              setVoiceError('Erreur lors du redémarrage. Réessayez dans quelques secondes.')
+            }
+          }, 200)
         } else {
-          setVoiceError('Impossible de démarrer la reconnaissance vocale.')
+          setVoiceError('Impossible de démarrer la reconnaissance vocale. Vérifiez votre connexion Internet.')
+          sendNotification('⚠️ Erreur', 'Impossible de démarrer. Vérifiez Internet et le microphone.')
           setTimeout(() => {
             setVoiceError(null)
-          }, 3000)
+          }, 5000)
         }
       }
     }
@@ -2137,6 +2198,109 @@ export default function TaskflowPage() {
                         ✕
                       </button>
                     </div>
+
+                    {/* Catégorie : Commandes Vocales - EN PREMIER POUR VISIBILITÉ */}
+                    {voiceCommandsEnabled && (
+                      <div className="mobile-menu-category mobile-menu-category-voice">
+                        <div className="mobile-menu-category-title">
+                          🎤 Commandes Vocales
+                          {isListening && <span className="voice-status-indicator pulse-animation">●</span>}
+                        </div>
+                        <div style={{ 
+                          padding: '12px', 
+                          marginBottom: '8px',
+                          backgroundColor: isListening ? 'var(--color-warning)' : 'var(--color-secondary)',
+                          borderRadius: '8px',
+                          border: `2px solid ${isListening ? 'var(--color-primary)' : 'var(--color-border)'}`
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '1.2em' }}>{isListening ? '🎤' : '🎤'}</span>
+                            <span style={{ fontWeight: 'bold' }}>
+                              {isListening ? 'Écoute active...' : 'Prêt à écouter'}
+                            </span>
+                          </div>
+                          {voiceCommandText && (
+                            <div style={{ 
+                              fontSize: '0.9em', 
+                              color: 'var(--color-text-secondary)',
+                              marginTop: '4px',
+                              fontStyle: 'italic'
+                            }}>
+                              "{voiceCommandText}"
+                            </div>
+                          )}
+                          {voiceError && (
+                            <div style={{ 
+                              fontSize: '0.85em', 
+                              color: 'var(--color-error)',
+                              marginTop: '4px',
+                              padding: '4px',
+                              backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                              borderRadius: '4px'
+                            }}>
+                              ⚠️ {voiceError}
+                            </div>
+                          )}
+                        </div>
+                        <button 
+                          className={`mobile-menu-item ${isListening ? 'mobile-menu-item-active' : ''}`}
+                          onClick={async () => {
+                            await toggleSpeechRecognition()
+                          }}
+                        >
+                          <span className="mobile-menu-icon">{isListening ? '⏹️' : '▶️'}</span>
+                          <span className="mobile-menu-label">
+                            {isListening ? 'Arrêter l\'écoute' : 'Démarrer l\'écoute'}
+                          </span>
+                        </button>
+                        <button 
+                          className="mobile-menu-item"
+                          onClick={() => {
+                            setShowVoiceHelpModal(true)
+                            setShowMobileMenu(false)
+                          }}
+                        >
+                          <span className="mobile-menu-icon">❓</span>
+                          <span className="mobile-menu-label">Aide & Commandes</span>
+                        </button>
+                        <div style={{ 
+                          padding: '8px', 
+                          marginTop: '8px',
+                          fontSize: '0.85em',
+                          color: 'var(--color-text-secondary)',
+                          backgroundColor: 'var(--color-secondary)',
+                          borderRadius: '4px'
+                        }}>
+                          <div style={{ marginBottom: '4px' }}>
+                            <strong>Raccourci :</strong> <kbd>Ctrl+Shift+V</kbd>
+                          </div>
+                          <div>
+                            <strong>Exemples :</strong> "calendrier", "statistiques", "créer tâche"
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!voiceCommandsEnabled && (
+                      <div className="mobile-menu-category">
+                        <div className="mobile-menu-category-title">🎤 Commandes Vocales</div>
+                        <div style={{ 
+                          padding: '12px', 
+                          backgroundColor: 'var(--color-secondary)',
+                          borderRadius: '8px',
+                          color: 'var(--color-text-secondary)'
+                        }}>
+                          <div style={{ marginBottom: '8px' }}>
+                            ⚠️ Commandes vocales non disponibles
+                          </div>
+                          <div style={{ fontSize: '0.85em' }}>
+                            Utilisez Chrome, Edge ou Safari pour activer les commandes vocales.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mobile-menu-divider"></div>
 
                     {/* Catégorie : Rapports & Résumés */}
                     <div className="mobile-menu-category">

@@ -5538,6 +5538,22 @@ export default function TaskflowPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Paramètres */}
+                <div>
+                  <h4 style={{ marginBottom: '12px', color: 'var(--color-primary)' }}>⚙️ Paramètres</h4>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--color-secondary)', borderRadius: '4px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={voiceAudioFeedback}
+                        onChange={(e) => setVoiceAudioFeedback(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>Feedback audio (son de confirmation lors de l'exécution des commandes)</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="taskflow-modal-footer">

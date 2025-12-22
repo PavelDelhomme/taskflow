@@ -231,6 +231,222 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ---
 
+## 🧪 Tests à Effectuer
+
+### ✅ Tests Automatisés (Script `test-complete.sh`)
+
+#### 1. Tests d'Infrastructure
+- [ ] **Docker** : Vérifier que Docker est en cours d'exécution
+- [ ] **Conteneurs** : Vérifier que tous les conteneurs sont actifs
+  - [ ] `taskflow-api` est en cours d'exécution
+  - [ ] `taskflow-web` est en cours d'exécution
+  - [ ] `taskflow-db` est en cours d'exécution
+- [ ] **Services** : Attendre que tous les services soient prêts (health checks)
+
+#### 2. Tests de Santé de l'API
+- [ ] **Health Check** : `GET /health` retourne 200
+- [ ] **Root API** : `GET /` retourne 200 avec message de bienvenue
+
+#### 3. Tests d'Authentification
+- [ ] **Login** : Connexion avec `admin@taskflow.local` / `taskflow123`
+  - [ ] Retourne un token JWT valide
+  - [ ] Token peut être utilisé pour les requêtes authentifiées
+- [ ] **Register** : Création d'un nouveau compte utilisateur
+  - [ ] Validation des champs (email, password, username)
+  - [ ] Vérification du domaine email (`@taskflow.local`)
+  - [ ] Hash du mot de passe correct (SHA-256)
+- [ ] **Token Validation** : Vérifier que les tokens expirent correctement
+- [ ] **CORS** : Vérifier que les requêtes cross-origin fonctionnent
+
+#### 4. Tests des Endpoints de Base
+- [ ] **Tâches** : `GET /tasks/` retourne la liste des tâches
+- [ ] **Workflows** : `GET /workflows` retourne la liste des workflows
+- [ ] **Statistiques** : `GET /stats/dashboard` retourne les stats du dashboard
+- [ ] **Templates** : `GET /templates/` retourne la liste des templates
+- [ ] **Tags** : `GET /tags/` retourne la liste des tags
+- [ ] **Notes** : `GET /notes/` retourne la liste des notes
+
+#### 5. Tests du Mécanisme d'Attention
+- [ ] **Stats d'attention** : `GET /attention/stats` retourne les statistiques
+- [ ] **Recommandations** : `GET /attention/recommendations` retourne des suggestions
+- [ ] **Historique** : `GET /attention/history` retourne l'historique des sessions
+- [ ] **Patterns** : `GET /attention/patterns` retourne les patterns détectés
+- [ ] **Création de session** : `POST /attention/session` enregistre une session
+  - [ ] Validation des champs (task_id, focus_start, focus_end, etc.)
+  - [ ] Calcul automatique de `focus_duration_seconds`
+  - [ ] Calcul automatique de `attention_score`
+
+#### 6. Tests de l'IA (Suggestions)
+- [ ] **Suggestion de tâche suivante** : `GET /ai/suggest-next-task`
+  - [ ] Retourne une suggestion basée sur l'attention
+  - [ ] Prend en compte l'énergie, l'heure, les patterns
+- [ ] **Suggestion de pause** : `GET /ai/suggest-break`
+  - [ ] Détecte quand une pause est nécessaire
+  - [ ] Suggère des activités de pause appropriées
+- [ ] **Suggestion de timing** : `GET /ai/suggest-task-timing`
+  - [ ] Suggère le meilleur moment pour une tâche
+  - [ ] Basé sur les patterns d'attention historiques
+
+#### 7. Tests des Autres Fonctionnalités
+- [ ] **Niveau d'énergie** :
+  - [ ] `GET /energy/current` retourne le niveau actuel
+  - [ ] `GET /energy/logs?days=7` retourne l'historique
+  - [ ] `POST /energy/log` enregistre un nouveau niveau
+- [ ] **Pauses** :
+  - [ ] `GET /breaks/today` retourne les pauses du jour
+  - [ ] `POST /breaks` crée une nouvelle pause
+  - [ ] `GET /breaks/stats` retourne les statistiques
+- [ ] **Rappels** :
+  - [ ] `GET /reminders/pending` retourne les rappels en attente
+  - [ ] `POST /reminders` crée un nouveau rappel
+  - [ ] `PUT /reminders/{id}/complete` marque un rappel comme complété
+- [ ] **Comparaison temps** : `GET /stats/time-comparison` retourne les comparaisons estimation/réalité
+
+#### 8. Tests de l'Application Web
+- [ ] **Accessibilité** : `GET http://localhost:4000` retourne 200
+- [ ] **Rendu** : La page se charge correctement
+- [ ] **Assets** : Tous les fichiers CSS/JS se chargent
+
+#### 9. Tests de la Base de Données
+- [ ] **Connexion** : Connexion PostgreSQL fonctionne
+- [ ] **Tables** : Toutes les tables existent
+  - [ ] `users`, `tasks`, `workflows`
+  - [ ] `attention_logs`, `energy_logs`, `breaks`, `reminders`
+  - [ ] `task_templates`, `tags`, `task_tags`, `notes`
+  - [ ] `subtasks`, `saved_views`, `user_achievements`
+- [ ] **Index** : Les index sont créés correctement
+- [ ] **Relations** : Les foreign keys fonctionnent
+
+### 🔍 Tests Manuels Frontend
+
+#### 10. Tests d'Interface Utilisateur
+- [ ] **Navbar** :
+  - [ ] Menu hamburger visible sur tous les écrans
+  - [ ] Menu hamburger s'ouvre/ferme correctement
+  - [ ] Tous les éléments sont accessibles depuis le menu
+  - [ ] Barre de recherche fonctionne
+  - [ ] Résultats de recherche s'affichent correctement
+- [ ] **Colonnes de tâches** :
+  - [ ] Colonnes s'affichent correctement
+  - [ ] Une seule colonne peut être étendue à la fois
+  - [ ] Colonnes prennent toute la hauteur disponible
+  - [ ] Scroll fonctionne quand nécessaire
+- [ ] **Actions sur les tâches** :
+  - [ ] Bouton toggle masque/affiche les actions
+  - [ ] Toutes les actions fonctionnent (modifier, supprimer, etc.)
+  - [ ] Modal de détails s'ouvre correctement
+
+#### 11. Tests de Responsive Design
+- [ ] **Mobile (375px)** :
+  - [ ] Navbar s'adapte correctement
+  - [ ] Menu hamburger fonctionne
+  - [ ] FAB menu est visible et fonctionnel
+  - [ ] Colonnes s'empilent verticalement
+- [ ] **Tablette (768px)** :
+  - [ ] Layout s'adapte correctement
+  - [ ] Menu hamburger fonctionne
+  - [ ] Colonnes s'affichent correctement
+- [ ] **Desktop (1024px+)** :
+  - [ ] Layout complet s'affiche
+  - [ ] Menu hamburger toujours accessible
+  - [ ] Toutes les fonctionnalités sont accessibles
+
+#### 12. Tests de Commandes Vocales
+- [ ] **Activation** :
+  - [ ] Bouton de commande vocale fonctionne
+  - [ ] Permissions microphone demandées correctement
+  - [ ] Indicateur visuel d'écoute active
+- [ ] **Commandes** :
+  - [ ] "créer tâche [titre]" crée une nouvelle tâche
+  - [ ] "mettre [tâche] en cours" change le statut
+  - [ ] "ouvrir calendrier" ouvre le modal calendrier
+  - [ ] "fermer" ferme les modals
+  - [ ] "afficher statistiques" ouvre les stats
+- [ ] **Feedback** :
+  - [ ] Transcription en temps réel s'affiche
+  - [ ] Erreurs sont gérées correctement
+  - [ ] Confirmation visuelle des actions
+
+#### 13. Tests des Modals
+- [ ] **Modal de tâche** :
+  - [ ] S'ouvre au clic sur une tâche
+  - [ ] Affiche tous les détails
+  - [ ] Permet la modification
+  - [ ] Se ferme correctement
+- [ ] **Modal de création** :
+  - [ ] S'ouvre depuis le FAB ou menu
+  - [ ] Tous les champs sont présents
+  - [ ] Validation fonctionne
+  - [ ] Création réussit
+- [ ] **Modals spécialisés** :
+  - [ ] Modal Statistiques
+  - [ ] Modal Calendrier
+  - [ ] Modal Templates
+  - [ ] Modal Tags
+  - [ ] Modal Notes
+  - [ ] Modal Pauses
+  - [ ] Modal Energy
+  - [ ] Modal Time Awareness
+
+#### 14. Tests de Fonctionnalités Spécifiques
+- [ ] **Recherche de tâches** :
+  - [ ] Recherche en temps réel
+  - [ ] Résultats filtrés correctement
+  - [ ] Navigation vers la tâche fonctionne
+- [ ] **Filtres** :
+  - [ ] Filtrage par statut fonctionne
+  - [ ] Filtrage par tag fonctionne
+  - [ ] Filtrage par projet fonctionne
+  - [ ] Combinaison de filtres fonctionne
+- [ ] **Templates** :
+  - [ ] Liste des templates s'affiche
+  - [ ] Création depuis template fonctionne
+  - [ ] Sous-tâches sont créées automatiquement
+- [ ] **Breakdown automatique** :
+  - [ ] Bouton "Décomposer" fonctionne
+  - [ ] Sous-tâches sont générées
+  - [ ] Progression s'affiche correctement
+- [ ] **Time Awareness** :
+  - [ ] Estimation de temps peut être saisie
+  - [ ] Comparaison estimation/réalité s'affiche
+  - [ ] Graphiques sont corrects
+- [ ] **Notes** :
+  - [ ] Création de note fonctionne
+  - [ ] Conversion en tâche fonctionne
+  - [ ] Recherche dans notes fonctionne
+
+#### 15. Tests de Performance
+- [ ] **Chargement initial** : Page se charge en < 3 secondes
+- [ ] **Requêtes API** : Toutes les requêtes répondent en < 1 seconde
+- [ ] **Scroll** : Scroll fluide sans lag
+- [ ] **Animations** : Animations fluides (60 FPS)
+
+#### 16. Tests d'Accessibilité
+- [ ] **Navigation clavier** : Tous les éléments sont accessibles au clavier
+- [ ] **Focus visible** : Focus est visible sur tous les éléments interactifs
+- [ ] **ARIA labels** : Tous les éléments ont des labels appropriés
+- [ ] **Contraste** : Contraste suffisant pour la lisibilité
+- [ ] **Screen readers** : Compatible avec les lecteurs d'écran
+
+#### 17. Tests de Sécurité
+- [ ] **Authentification** : Accès non autorisé bloqué
+- [ ] **Tokens** : Tokens JWT expirent correctement
+- [ ] **Validation** : Toutes les entrées sont validées
+- [ ] **CORS** : CORS configuré correctement
+- [ ] **XSS** : Protection contre les injections XSS
+- [ ] **SQL Injection** : Protection contre les injections SQL
+
+### 📊 Résumé des Tests
+
+**Tests Automatisés** : 27 tests (via `test-complete.sh`)  
+**Tests Manuels** : ~80 tests à effectuer  
+**Total** : ~107 tests à compléter
+
+**Statut actuel** : ✅ 27/27 tests automatisés passent  
+**Prochaine étape** : Effectuer les tests manuels et documenter les résultats
+
+---
+
 ## 📋 Notes Techniques
 
 ### Modifications Récentes (2025-01-20)
@@ -253,5 +469,5 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
 
 ---
 
-*Dernière mise à jour : 2025-01-20*
+*Dernière mise à jour : 2025-01-20 (Tests à effectuer ajoutés)*
 

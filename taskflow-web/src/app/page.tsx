@@ -5637,6 +5637,112 @@ export default function TaskflowPage() {
         </div>
       )}
 
+      {/* Modal d'Erreur Vocale - Popup au centre */}
+      {showVoiceErrorModal && voiceErrorDetails && (
+        <div className="taskflow-modal-overlay" onClick={() => {
+          setShowVoiceErrorModal(false)
+          setVoiceErrorDetails(null)
+          setVoiceError(null)
+        }}>
+          <div className="taskflow-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="taskflow-modal-header">
+              <h3 className="modal-title" style={{ color: 'var(--color-error)' }}>
+                ⚠️ {voiceErrorDetails.title}
+              </h3>
+              <button className="modal-close" onClick={() => {
+                setShowVoiceErrorModal(false)
+                setVoiceErrorDetails(null)
+                setVoiceError(null)
+              }}>×</button>
+            </div>
+            <div className="taskflow-modal-body">
+              <p style={{ marginBottom: '20px', lineHeight: '1.6' }}>
+                {voiceErrorDetails.message}
+              </p>
+              {voiceErrorDetails.title === 'Connexion Internet requise' && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: 'var(--color-warning)', 
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <strong>💡 Note importante :</strong> La reconnaissance vocale utilise les serveurs Google et nécessite une connexion Internet active.
+                </div>
+              )}
+              {voiceErrorDetails.title === 'Permission microphone requise' && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: 'var(--color-info)', 
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <strong>📝 Instructions :</strong>
+                  <ol style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                    <li>Cliquez sur l'icône 🔒 dans la barre d'adresse de votre navigateur</li>
+                    <li>Sélectionnez "Autoriser" pour l'accès au microphone</li>
+                    <li>Rechargez la page si nécessaire</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+            <div className="taskflow-modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              {voiceErrorDetails.action === 'Autoriser' && (
+                <button 
+                  className="btn-auth-primary"
+                  onClick={async () => {
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                      stream.getTracks().forEach(track => track.stop())
+                      setShowVoiceErrorModal(false)
+                      setVoiceErrorDetails(null)
+                      setVoiceError(null)
+                      sendNotification('✅ Permission accordée', 'Vous pouvez maintenant utiliser les commandes vocales.')
+                      // Redémarrer l'écoute si l'utilisateur le souhaite
+                      setTimeout(() => {
+                        toggleSpeechRecognition()
+                      }, 500)
+                    } catch (error) {
+                      setVoiceErrorDetails({
+                        title: 'Permission toujours refusée',
+                        message: 'L\'accès au microphone a été refusé. Veuillez autoriser manuellement dans les paramètres de votre navigateur.',
+                        action: 'Fermer'
+                      })
+                    }
+                  }}
+                >
+                  Autoriser le microphone
+                </button>
+              )}
+              {voiceErrorDetails.action === 'Réessayer' && (
+                <button 
+                  className="btn-auth-primary"
+                  onClick={async () => {
+                    setShowVoiceErrorModal(false)
+                    setVoiceErrorDetails(null)
+                    setVoiceError(null)
+                    setTimeout(() => {
+                      toggleSpeechRecognition()
+                    }, 300)
+                  }}
+                >
+                  Réessayer
+                </button>
+              )}
+              <button 
+                className="btn-auth-secondary"
+                onClick={() => {
+                  setShowVoiceErrorModal(false)
+                  setVoiceErrorDetails(null)
+                  setVoiceError(null)
+                }}
+              >
+                {voiceErrorDetails.action === 'Compris' ? 'Compris' : 'Fermer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Aide Commandes Vocales */}
       {showVoiceHelpModal && (
         <div className="taskflow-modal-overlay" onClick={() => setShowVoiceHelpModal(false)}>

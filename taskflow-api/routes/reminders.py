@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+import json
 from database import get_db_connection
 from routes.auth import get_current_user
 
@@ -80,16 +81,19 @@ async def create_reminder(reminder_data: ReminderCreate, current_user: dict = De
             if not task or task[0] != current_user["user_id"]:
                 raise HTTPException(status_code=404, detail="Tâche non trouvée")
         
+        # Convertir context_data en JSON string si présent
+        context_data_json = json.dumps(reminder_data.context_data) if reminder_data.context_data else None
+        
         cur.execute("""
             INSERT INTO reminders (user_id, task_id, reminder_type, reminder_time, context_data)
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s::jsonb)
             RETURNING id, user_id, task_id, reminder_type, reminder_time, is_sent, sent_at, snooze_count, snooze_until
         """, [
             current_user["user_id"],
             reminder_data.task_id,
             reminder_data.reminder_type,
             reminder_data.reminder_time,
-            reminder_data.context_data
+            context_data_json
         ])
         
         row = cur.fetchone()

@@ -168,26 +168,17 @@ if [ -n "$TASK_ID" ] && [ "$TASK_ID" != "None" ] && [ "$TASK_ID" != "" ]; then
     # Vérifier que la réponse contient bien les champs attendus
     test_endpoint_detailed "GET /tasks/{id}" "GET" "$API_URL/tasks/$TASK_ID" "$TOKEN" "" "200"
     
-    # Modifier la tâche (utiliser PATCH ou PUT selon l'API)
+    # Modifier la tâche (l'API utilise PUT)
     UPDATE_TASK="{\"title\":\"Test Task Updated\",\"status\":\"in_progress\"}"
-    # Essayer PUT d'abord, puis PATCH si nécessaire
-    UPDATE_RESPONSE=$(curl -s -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d "$UPDATE_TASK" "$API_URL/tasks/$TASK_ID")
-    HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -1)
-    if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-        # Essayer PATCH
-        test_endpoint_detailed "PATCH /tasks/{id}" "POST" "$API_URL/tasks/$TASK_ID" "$TOKEN" "$UPDATE_TASK" "200"
-    else
-        echo -e "  ${GREEN}✓ PUT /tasks/{id} OK${NC} (HTTP $HTTP_CODE)"
-        ((SUCCESS++))
-    fi
+    test_endpoint_detailed "PUT /tasks/{id}" "PUT" "$API_URL/tasks/$TASK_ID" "$TOKEN" "$UPDATE_TASK" "200"
     
     # Supprimer la tâche
     test_endpoint_detailed "DELETE /tasks/{id}" "DELETE" "$API_URL/tasks/$TASK_ID" "$TOKEN" "" "200"
 fi
 
-# Test création avec données invalides (l'API peut accepter title vide, tester avec status invalide)
-test_endpoint_detailed "POST /tasks (données invalides)" "POST" "$API_URL/tasks/" "$TOKEN" \
-  '{"title":"Test","status":"invalid_status"}' "422"
+# Test création avec données invalides (title manquant - champ requis)
+test_endpoint_detailed "POST /tasks (données invalides - title manquant)" "POST" "$API_URL/tasks/" "$TOKEN" \
+  '{"description":"Test sans title"}' "422"
 
 echo ""
 

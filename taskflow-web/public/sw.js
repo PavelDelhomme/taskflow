@@ -4,13 +4,15 @@ const NOTIFICATIONS_DB = 'taskflow-notifications'
 
 // Installation du Service Worker
 self.addEventListener('install', (event) => {
-  console.log('TaskFlow SW installed')
+  // Log uniquement en mode développement (commenté pour réduire la verbosité)
+  // console.log('TaskFlow SW installed')
   self.skipWaiting() // Activer immédiatement
 })
 
 // Activation du Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('TaskFlow SW activated')
+  // Log uniquement en mode développement (commenté pour réduire la verbosité)
+  // console.log('TaskFlow SW activated')
   event.waitUntil(
     clients.claim() // Prendre le contrôle de toutes les pages
   )
@@ -56,13 +58,15 @@ async function scheduleNotification(id, title, body, timestamp, icon = '/favicon
     removeNotification(id)
   }, delay)
   
-  console.log(`Notification programmée: ${title} dans ${Math.round(delay / 1000)}s`)
+  // Log uniquement en mode développement
+  // console.log(`Notification programmée: ${title} dans ${Math.round(delay / 1000)}s`)
 }
 
 // Annuler une notification programmée
 async function cancelScheduledNotification(id) {
   await removeNotification(id)
-  console.log(`Notification annulée: ${id}`)
+  // Log uniquement en mode développement (commenté pour réduire la verbosité)
+  // console.log(`Notification annulée: ${id}`)
 }
 
 // Afficher une notification
@@ -124,7 +128,7 @@ async function syncRemindersFromAPI() {
     // Récupérer le token depuis IndexedDB
     const token = await getStoredToken()
     if (!token) {
-      console.log('Pas de token, impossible de synchroniser')
+      // Pas de token encore, c'est normal au démarrage - ne pas logger
       return
     }
     
@@ -135,13 +139,14 @@ async function syncRemindersFromAPI() {
     })
     
     if (!response.ok) {
-      console.log('Erreur lors de la synchronisation des rappels')
+      // Erreur silencieuse, on réessayera plus tard
       return
     }
     
     const reminders = await response.json()
     
     // Programmer les notifications pour chaque rappel
+    let scheduledCount = 0
     for (const reminder of reminders) {
       const reminderTime = new Date(reminder.reminder_time).getTime()
       const now = Date.now()
@@ -161,12 +166,17 @@ async function syncRemindersFromAPI() {
           '/favicon.ico',
           `reminder-${reminder.id}`
         )
+        scheduledCount++
       }
     }
     
-    console.log(`${reminders.length} rappels synchronisés`)
+    // Log uniquement si des rappels ont été programmés (commenté pour réduire la verbosité)
+    // if (scheduledCount > 0) {
+    //   console.log(`${scheduledCount} rappel(s) programmé(s)`)
+    // }
   } catch (error) {
-    console.error('Erreur lors de la synchronisation:', error)
+    // Erreur silencieuse, on réessayera plus tard
+    // console.error('Erreur lors de la synchronisation:', error)
   }
 }
 

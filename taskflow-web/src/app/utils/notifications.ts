@@ -20,15 +20,29 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 
   try {
+    // Vérifier si le Service Worker est déjà enregistré
+    const existingRegistration = await navigator.serviceWorker.getRegistration(SW_SCOPE)
+    if (existingRegistration) {
+      // Service Worker déjà enregistré, attendre qu'il soit prêt
+      await navigator.serviceWorker.ready
+      return existingRegistration
+    }
+    
     const registration = await navigator.serviceWorker.register(SW_PATH, {
       scope: SW_SCOPE
     })
     
-    console.log('Service Worker enregistré:', registration.scope)
+    // Log uniquement en mode développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Service Worker enregistré:', registration.scope)
+    }
     
     // Attendre que le Service Worker soit actif
     await navigator.serviceWorker.ready
-    console.log('Service Worker prêt')
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Service Worker prêt')
+    }
     
     return registration
   } catch (error) {
@@ -146,20 +160,29 @@ export async function syncRemindersFromAPI(): Promise<void> {
 
   const registration = await navigator.serviceWorker.ready
   
-  // Utiliser Background Sync si disponible
+  // Utiliser Background Sync si disponible (optionnel, ne pas afficher d'erreur si indisponible)
   if ('sync' in registration) {
     try {
       await (registration as any).sync.register('sync-reminders')
-      console.log('Background Sync enregistré pour synchroniser les rappels')
-    } catch (error) {
-      console.error('Erreur lors de l\'enregistrement du Background Sync:', error)
+      // Log silencieux en mode développement uniquement
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Background Sync enregistré pour synchroniser les rappels')
+      }
+    } catch (error: any) {
+      // Background Sync n'est pas toujours disponible (nécessite HTTPS ou localhost avec certaines conditions)
+      // C'est normal, on continue sans
+      if (process.env.NODE_ENV === 'development' && error.name !== 'NotAllowedError') {
+        console.warn('Background Sync non disponible:', error.message)
+      }
     }
   }
 
-  // Envoyer un message direct au Service Worker
-  registration.active?.postMessage({
-    type: 'SYNC_REMINDERS'
-  })
+  // Envoyer un message direct au Service Worker (fonctionne toujours)
+  if (registration.active) {
+    registration.active.postMessage({
+      type: 'SYNC_REMINDERS'
+    })
+  }
 }
 
 // Programmer des notifications pour tous les rappels en attente
@@ -198,6 +221,11 @@ export async function initNotificationSystem(): Promise<{
 }> {
   const swRegistered = await registerServiceWorker() !== null
   const permissionGranted = await requestNotificationPermission()
+
+  // Log uniquement en mode développement
+  if (process.env.NODE_ENV === 'development' && swRegistered && permissionGranted) {
+    console.log('✅ Système de notifications en arrière-plan activé')
+  }
 
   return { swRegistered, permissionGranted }
 }

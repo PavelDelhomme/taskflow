@@ -281,6 +281,9 @@ export default function TaskflowPage() {
         // Stocker le token dans le Service Worker pour les notifications en arrière-plan
         await storeAuthTokenInSW(savedToken)
         
+        // Attendre un peu pour s'assurer que le token est bien stocké
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
         // Synchroniser les rappels avec le Service Worker
         await syncRemindersFromAPI()
       })
@@ -1210,6 +1213,10 @@ export default function TaskflowPage() {
         // Initialiser le système de notifications et stocker le token
         initNotifications().then(async () => {
           await storeAuthTokenInSW(data.access_token)
+          
+          // Attendre un peu pour s'assurer que le token est bien stocké
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
           await syncRemindersFromAPI()
         })
         

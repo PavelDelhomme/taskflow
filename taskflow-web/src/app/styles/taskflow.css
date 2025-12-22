@@ -385,10 +385,7 @@
 }
 
 .navbar-actions-desktop {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
+  display: none; /* Désactivé - tout est dans le menu hamburger maintenant */
 }
 
 .btn-nav-priority {
@@ -396,7 +393,7 @@
 }
 
 .btn-nav-hamburger {
-  display: none;
+  display: flex; /* Visible sur tous les écrans maintenant */
 }
 
 /* Responsive breakpoints */
@@ -436,6 +433,17 @@
   
   .navbar-user-menu {
     display: none;
+  }
+}
+
+/* Menu hamburger visible sur tous les écrans maintenant */
+@media (min-width: 1025px) {
+  .btn-nav-hamburger {
+    display: flex;
+  }
+  
+  .navbar-user-menu {
+    display: flex;
   }
 }
 
@@ -749,6 +757,21 @@
   animation: slideDown 0.3s ease-out;
   padding: 0;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Menu hamburger adapté pour grands écrans */
+@media (min-width: 1025px) {
+  .mobile-menu-dropdown {
+    left: auto;
+    right: var(--space-16);
+    top: 80px;
+    width: 400px;
+    max-width: 90vw;
+    max-height: calc(100vh - 100px);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-xl);
+  }
 }
 
 .mobile-menu-header {

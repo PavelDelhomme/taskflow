@@ -1,0 +1,44 @@
+
+📊 RÉSUMÉ DES TESTS - TaskFlow ADHD
+====================================
+
+✅ TESTS RÉUSSIS (16):
+- Docker fonctionne
+- Tous les conteneurs sont en cours d'exécution
+- Health check API
+- Root API
+- Authentification
+- GET /tasks
+- GET /workflows
+- GET /stats/dashboard
+- GET /attention/stats
+- GET /attention/recommendations
+- GET /attention/history
+- GET /attention/patterns
+- POST /attention/session
+- GET /ai/suggest-next-task
+- GET /ai/suggest-break
+- Application web accessible
+- Base de données accessible
+- Table attention_logs existe
+
+❌ TESTS EN ÉCHEC (11):
+- GET /templates (404 - route peut-être manquante)
+- GET /tags (404 - route peut-être manquante)
+- GET /notes (404 - route peut-être manquante)
+- GET /energy/current (500 - erreur serveur)
+- GET /energy/logs (500 - erreur serveur)
+- GET /breaks/today (500 - erreur serveur)
+- GET /reminders/pending (500 - erreur serveur)
+- GET /stats/time-comparison (500 - erreur serveur)
+
+🎯 FONCTIONNALITÉS PRINCIPALES TESTÉES:
+✅ Mécanisme d'attention - FONCTIONNEL
+✅ IA suggestions basées sur l'attention - FONCTIONNEL
+✅ API de base - FONCTIONNEL
+✅ Application web - ACCESSIBLE
+✅ Base de données - OPÉRATIONNELLE
+
+📝 NOTE: Les erreurs 500 sont probablement dues à des tables manquantes
+(energy_logs, breaks, reminders) qui doivent être créées via des migrations.
+

@@ -56,6 +56,24 @@ CREATE TABLE IF NOT EXISTS task_logs (
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
 );
 
+-- 🧠 TABLE ATTENTION_LOGS - Mécanisme d'attention intelligent
+CREATE TABLE IF NOT EXISTS attention_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    task_id INTEGER,
+    focus_start TIMESTAMP NOT NULL,
+    focus_end TIMESTAMP,
+    focus_duration_seconds INTEGER,
+    attention_score INTEGER DEFAULT 0,  -- Score 0-100
+    distraction_events INTEGER DEFAULT 0,  -- Nombre de distractions/changements
+    context_hour INTEGER,  -- Heure de la journée (0-23)
+    context_energy_level INTEGER,  -- Niveau d'énergie si disponible (1-5)
+    context_day_of_week INTEGER,  -- Jour de la semaine (0-6)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE SET NULL
+);
+
 -- 👤 UTILISATEUR PAR DÉFAUT - PASSWORD: taskflow123
 INSERT INTO users (username, email, password_hash, full_name) 
 VALUES (
@@ -77,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_workflows_user_id ON workflows(user_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_project ON workflows(project);
+CREATE INDEX IF NOT EXISTS idx_attention_logs_user_id ON attention_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_attention_logs_task_id ON attention_logs(task_id);
+CREATE INDEX IF NOT EXISTS idx_attention_logs_focus_start ON attention_logs(focus_start);
 
 -- ✅ BASE PRÊTE !
 -- Login: admin@taskflow.local / taskflow123

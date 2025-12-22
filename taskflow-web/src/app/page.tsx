@@ -160,6 +160,12 @@ export default function TaskflowPage() {
   const [voiceCommandText, setVoiceCommandText] = useState('')
   const [showVoiceHelpModal, setShowVoiceHelpModal] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  
+  // 🧠 Mécanisme d'attention intelligent (tracking en arrière-plan pour l'IA)
+  const [currentFocusTask, setCurrentFocusTask] = useState<number | null>(null)
+  const [focusStartTime, setFocusStartTime] = useState<Date | null>(null)
+  const [taskSwitchCount, setTaskSwitchCount] = useState(0)
+  const [lastTaskChangeTime, setLastTaskChangeTime] = useState<Date | null>(null)
 
   // Utiliser une variable d'environnement ou une valeur par défaut
   const API_URL = (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) 
@@ -461,6 +467,126 @@ export default function TaskflowPage() {
       }
     }
   }, [isLoggedIn, token, tasks])
+
+  // 🧠 Tracking d'attention automatique
+  useEffect(() => {
+    if (!isLoggedIn || !token) return
+
+    // Détecter la tâche en cours automatiquement
+    const inProgressTask = tasks.find(t => t.status === 'in_progress')
+    if (inProgressTask && currentFocusTask !== inProgressTask.id) {
+      trackTaskChange(inProgressTask.id)
+    } else if (!inProgressTask && currentFocusTask !== null) {
+      trackTaskChange(null)
+    }
+
+    // Rafraîchir les suggestions IA toutes les 10 minutes
+    const aiSuggestionsInterval = setInterval(() => {
+      fetchAISuggestions()
+    }, 10 * 60 * 1000)
+
+    // Enregistrer la session en cours toutes les 10 minutes
+    const sessionSaveInterval = setInterval(() => {
+      if (currentFocusTask && focusStartTime) {
+        const now = new Date()
+        const focusDuration = Math.floor((now.getTime() - focusStartTime.getTime()) / 1000)
+        
+        // Enregistrer une session intermédiaire si on a au moins 5 minutes de focus
+        if (focusDuration >= 300) {
+          recordAttentionSession(
+            currentFocusTask,
+            focusStartTime,
+            now,
+            taskSwitchCount
+          )
+          // Réinitialiser le compteur mais garder la session active
+          setTaskSwitchCount(0)
+          setFocusStartTime(now)
+        }
+      }
+    }, 10 * 60 * 1000)
+
+    return () => {
+      clearInterval(aiSuggestionsInterval)
+      clearInterval(sessionSaveInterval)
+    }
+  }, [isLoggedIn, token, tasks, currentFocusTask, focusStartTime, taskSwitchCount])
+
+  // 🧠 Détection d'inactivité (quand l'utilisateur quitte la page ou devient inactif)
+  useEffect(() => {
+    if (!isLoggedIn || !currentFocusTask) return
+
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+    const INACTIVITY_THRESHOLD = 5 * 60 * 1000 // 5 minutes
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer)
+      
+      inactivityTimer = setTimeout(() => {
+        // L'utilisateur est inactif depuis 5 minutes, enregistrer la session
+        if (currentFocusTask && focusStartTime) {
+          const now = new Date()
+          recordAttentionSession(
+            currentFocusTask,
+            focusStartTime,
+            now,
+            taskSwitchCount
+          )
+          trackTaskChange(null)
+        }
+      }, INACTIVITY_THRESHOLD)
+    }
+
+    // Événements pour détecter l'activité
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    events.forEach(event => {
+      window.addEventListener(event, resetInactivityTimer, true)
+    })
+
+    resetInactivityTimer()
+
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer)
+      events.forEach(event => {
+        window.removeEventListener(event, resetInactivityTimer, true)
+      })
+    }
+  }, [isLoggedIn, currentFocusTask, focusStartTime, taskSwitchCount])
+
+  // 🧠 Enregistrer la session d'attention quand l'utilisateur quitte la page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (currentFocusTask && focusStartTime && token) {
+        const now = new Date()
+        // Utiliser sendBeacon pour envoyer la requête même si la page se ferme
+        const sessionData = {
+          task_id: currentFocusTask,
+          focus_start: focusStartTime.toISOString(),
+          focus_end: now.toISOString(),
+          distraction_events: taskSwitchCount,
+          context_energy_level: energyLevel
+        }
+        
+        // Enregistrer de manière synchrone si possible
+        fetch(`${API_URL}/attention/session`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(sessionData),
+          keepalive: true
+        }).catch(() => {
+          // Ignorer les erreurs lors de la fermeture
+        })
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [currentFocusTask, focusStartTime, taskSwitchCount, energyLevel, token])
 
   const initNotifications = async () => {
     if ('Notification' in window && 'serviceWorker' in navigator) {
@@ -790,6 +916,112 @@ export default function TaskflowPage() {
     } catch (error) {
       console.error('Error fetching energy data:', error)
     }
+  }
+
+  // 🧠 Attention - Récupérer les suggestions IA basées sur l'attention
+  const fetchAISuggestions = async () => {
+    if (!token) return
+    try {
+      const [nextTaskResponse, breakResponse] = await Promise.all([
+        fetch(`${API_URL}/ai/suggest-next-task`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/ai/suggest-break`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+      
+      if (nextTaskResponse.ok) {
+        const nextTask = await nextTaskResponse.json()
+        if (nextTask.suggestion) {
+          // Afficher la suggestion IA
+          const task = tasks.find(t => t.id === nextTask.suggestion.task_id)
+          if (task) {
+            sendNotification(
+              '🤖 Suggestion IA',
+              `${nextTask.recommendation}\n\nTâche suggérée: "${task.title}"`
+            )
+          }
+        }
+      }
+      
+      if (breakResponse.ok) {
+        const breakSuggestion = await breakResponse.json()
+        if (breakSuggestion.suggest_break) {
+          sendNotification('☕ Pause suggérée', breakSuggestion.reason)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching AI suggestions:', error)
+    }
+  }
+
+  // 🧠 Attention - Enregistrer une session de focus
+  const recordAttentionSession = async (
+    taskId: number | null,
+    focusStart: Date,
+    focusEnd: Date | null = null,
+    distractionEvents: number = 0
+  ) => {
+    if (!token) return
+    try {
+      const sessionData = {
+        task_id: taskId,
+        focus_start: focusStart.toISOString(),
+        focus_end: focusEnd ? focusEnd.toISOString() : null,
+        distraction_events: distractionEvents,
+        context_energy_level: energyLevel
+      }
+      
+      const response = await fetch(`${API_URL}/attention/session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(sessionData)
+      })
+      
+      if (response.ok) {
+        // Les données sont utilisées par l'IA en arrière-plan
+      }
+    } catch (error) {
+      console.error('Error recording attention session:', error)
+    }
+  }
+
+  // 🧠 Attention - Détecter les changements de tâches
+  const trackTaskChange = (newTaskId: number | null) => {
+    const now = new Date()
+    
+    // Si on change de tâche, enregistrer la session précédente
+    if (currentFocusTask !== null && currentFocusTask !== newTaskId && focusStartTime) {
+      const focusDuration = Math.floor((now.getTime() - focusStartTime.getTime()) / 1000)
+      
+      // Enregistrer la session précédente
+      recordAttentionSession(
+        currentFocusTask,
+        focusStartTime,
+        now,
+        taskSwitchCount
+      )
+      
+      // Réinitialiser le compteur
+      setTaskSwitchCount(0)
+    }
+    
+    // Détecter si c'est un changement rapide (distraction)
+    if (lastTaskChangeTime) {
+      const timeSinceLastChange = (now.getTime() - lastTaskChangeTime.getTime()) / 1000
+      if (timeSinceLastChange < 300) { // Moins de 5 minutes = distraction
+        setTaskSwitchCount(prev => prev + 1)
+      }
+    }
+    
+    // Mettre à jour la tâche actuelle
+    setCurrentFocusTask(newTaskId)
+    setFocusStartTime(newTaskId ? now : null)
+    setLastTaskChangeTime(now)
   }
 
   // 🔔 Rappels - Récupérer les rappels en attente
@@ -1125,6 +1357,18 @@ export default function TaskflowPage() {
 
       if (response.ok) {
         const updatedTask = await response.json()
+        
+        // 🧠 Tracking d'attention : détecter les changements de statut
+        if (updates.status) {
+          if (updates.status === 'in_progress') {
+            // Démarrer le tracking pour cette tâche
+            trackTaskChange(taskId)
+          } else if (updates.status !== 'in_progress' && currentFocusTask === taskId) {
+            // Arrêter le tracking si on quitte la tâche
+            trackTaskChange(null)
+          }
+        }
+        
         fetchTasks(token)
         setShowEditModal(false)
         setSelectedTask(null)
@@ -1601,150 +1845,7 @@ export default function TaskflowPage() {
                 </button>
               </div>
 
-              {/* Menu desktop - visible sur grands écrans */}
-              <div className="navbar-actions-desktop">
-                <button 
-                  className="btn-nav btn-nav-success" 
-                  onClick={fetchDailySummary}
-                  title="Résumé quotidien"
-                >
-                  <span>📋</span>
-                  <span className="btn-label">Daily</span>
-                </button>
-                <button
-                  className="btn-nav btn-nav-info" 
-                  onClick={fetchWeeklySummary}
-                  title="Résumé hebdomadaire"
-                >
-                  <span>📊</span>
-                  <span className="btn-label">Weekly</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-warning" 
-                  onClick={() => setShowWorkflowModal(true)}
-                  title="Workflows"
-                >
-                  <span>📋</span>
-                  <span className="btn-label">Workflows</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-info" 
-                  onClick={() => setShowCalendarModal(true)}
-                  title="Calendrier"
-                >
-                  <span>📅</span>
-                  <span className="btn-label">Calendrier</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-secondary" 
-                  onClick={() => {
-                    fetchDeletedTasks()
-                    setShowTrashModal(true)
-                  }}
-                  title="Corbeille"
-                >
-                  <span>🗑️</span>
-                  <span className="btn-label">Corbeille</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-info" 
-                  onClick={() => {
-                    fetchTimeComparisonStats()
-                    setShowTimeAwarenessModal(true)
-                  }}
-                  title="Time Awareness"
-                >
-                  <span>⏱️</span>
-                  <span className="btn-label">Time</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-success" 
-                  onClick={() => {
-                    fetchTemplates()
-                    setShowTemplatesModal(true)
-                  }}
-                  title="Templates"
-                >
-                  <span>📄</span>
-                  <span className="btn-label">Templates</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-warning" 
-                  onClick={() => {
-                    fetchTags()
-                    setShowTagsModal(true)
-                  }}
-                  title="Tags"
-                >
-                  <span>🏷️</span>
-                  <span className="btn-label">Tags</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-info" 
-                  onClick={() => {
-                    fetchNotes()
-                    setShowNotesModal(true)
-                  }}
-                  title="Notes"
-                >
-                  <span>📝</span>
-                  <span className="btn-label">Notes</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-primary" 
-                  onClick={() => {
-                    fetchDashboardStats()
-                    setShowStatsModal(true)
-                  }}
-                  title="Statistiques"
-                >
-                  <span>📊</span>
-                  <span className="btn-label">Stats</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-secondary" 
-                  onClick={() => {
-                    fetchBreaks()
-                    setShowBreaksModal(true)
-                  }}
-                  title="Pauses"
-                >
-                  <span>☕</span>
-                  <span className="btn-label">Pauses</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-success" 
-                  onClick={() => {
-                    fetchEnergyData()
-                    setShowEnergyModal(true)
-                  }}
-                  title="Energy"
-                >
-                  <span>⚡</span>
-                  <span className="btn-label">Energy</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-warning" 
-                  onClick={() => {
-                    fetchPendingReminders()
-                    setShowRemindersModal(true)
-                  }}
-                  title="Rappels"
-                >
-                  <span>🔔</span>
-                  <span className="btn-label">Rappels</span>
-                </button>
-                <button 
-                  className="btn-nav btn-nav-info" 
-                  onClick={() => setShowTimelineModal(true)}
-                  title="Timeline"
-                >
-                  <span>📅</span>
-                  <span className="btn-label">Timeline</span>
-                </button>
-              </div>
-
-              {/* Menu hamburger mobile */}
+              {/* Menu hamburger - visible sur tous les écrans */}
               <button 
                 className="btn-nav btn-nav-icon btn-nav-hamburger"
                 onClick={() => setShowMobileMenu(!showMobileMenu)}

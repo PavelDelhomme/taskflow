@@ -102,6 +102,38 @@ Ce document suit l'avancement de l'implémentation des fonctionnalités TDAH.
   - [ ] Suggestions intelligentes de tâches à faire maintenant
   - [ ] Détection des patterns de productivité
   - [ ] Recommandations personnalisées
+  - [ ] **Mécanisme d'attention intelligent (Attention Tracking & Focus AI)** 🧠
+    - [ ] Tracking du temps de focus sur chaque tâche (API + Frontend)
+    - [ ] Détection de perte d'attention (changements de tâches fréquents, inactivité)
+    - [ ] Calcul d'un "score d'attention" basé sur :
+      - Temps de focus continu sur une tâche
+      - Nombre de changements de tâches par heure
+      - Temps d'inactivité détecté
+      - Patterns historiques de productivité
+    - [ ] Alertes intelligentes quand l'attention baisse :
+      - Rappel doux pour revenir à la tâche en cours
+      - Suggestion de pause si score d'attention trop bas
+      - Recommandation de technique Pomodoro si pattern détecté
+    - [ ] Suggestions contextuelles basées sur l'attention :
+      - "Vous avez changé de tâche 5 fois en 10 minutes, voulez-vous faire une pause ?"
+      - "Vous êtes concentré depuis 45 minutes, excellente session !"
+      - "Votre attention est optimale, c'est le moment idéal pour les tâches difficiles"
+    - [ ] Apprentissage des patterns d'attention :
+      - Heures de la journée où l'utilisateur est le plus concentré
+      - Durée moyenne de focus avant perte d'attention
+      - Types de tâches qui maintiennent mieux l'attention
+    - [ ] Table de base de données `attention_logs` pour stocker :
+      - `user_id`, `task_id`, `focus_start`, `focus_end`, `focus_duration`
+      - `attention_score` (0-100), `distraction_events`, `context` (heure, énergie, etc.)
+    - [ ] API endpoints pour :
+      - Enregistrer les sessions de focus
+      - Récupérer les statistiques d'attention
+      - Obtenir les recommandations basées sur l'attention
+    - [ ] Interface frontend pour :
+      - Afficher le score d'attention en temps réel
+      - Visualiser les patterns d'attention (graphiques)
+      - Recevoir les alertes et suggestions
+      - Mode "Focus Mode" avec tracking automatique
 
 ## 📈 Progression Globale
 

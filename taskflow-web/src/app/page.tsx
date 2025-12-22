@@ -169,6 +169,8 @@ export default function TaskflowPage() {
   const [showVoiceHelpModal, setShowVoiceHelpModal] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [voiceAudioFeedback, setVoiceAudioFeedback] = useState(true) // Feedback audio activé par défaut
+  const [showVoiceErrorModal, setShowVoiceErrorModal] = useState(false)
+  const [voiceErrorDetails, setVoiceErrorDetails] = useState<{title: string, message: string, action?: string} | null>(null)
   
   // 🧠 Mécanisme d'attention intelligent (tracking en arrière-plan pour l'IA)
   const [currentFocusTask, setCurrentFocusTask] = useState<number | null>(null)
@@ -383,52 +385,65 @@ export default function TaskflowPage() {
       
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
-        console.error('Erreur de reconnaissance vocale:', event.error)
+        // Ne pas logger dans la console pour éviter le spam
         setIsListening(false)
+        
+        let errorTitle = 'Erreur de reconnaissance vocale'
+        let errorMessage = ''
+        let errorAction: string | undefined = undefined
         
         switch (event.error) {
           case 'no-speech':
-            setVoiceError('Aucune parole détectée. Parlez plus fort ou vérifiez votre microphone.')
-            sendNotification('⚠️ Commande vocale', 'Aucune parole détectée. Réessayez.')
+            errorTitle = 'Aucune parole détectée'
+            errorMessage = 'Parlez plus fort ou vérifiez que votre microphone fonctionne correctement.'
+            errorAction = 'Réessayer'
             break
           case 'audio-capture':
-            setVoiceError('Microphone non disponible. Vérifiez vos permissions et que le micro n\'est pas utilisé ailleurs.')
-            sendNotification('⚠️ Commande vocale', 'Microphone non disponible. Vérifiez vos permissions.')
+            errorTitle = 'Microphone non disponible'
+            errorMessage = 'Vérifiez que votre microphone est connecté et qu\'il n\'est pas utilisé par une autre application.'
+            errorAction = 'Réessayer'
             break
           case 'not-allowed':
-            setVoiceError('Permission microphone refusée. Cliquez sur 🔒 dans la barre d\'adresse pour autoriser.')
-            sendNotification('⚠️ Commande vocale', 'Permission microphone requise. Autorisez dans les paramètres.')
-            // Essayer de redemander la permission
+            errorTitle = 'Permission microphone requise'
+            errorMessage = 'Pour utiliser les commandes vocales, vous devez autoriser l\'accès au microphone. Cliquez sur "Autoriser" pour continuer.'
+            errorAction = 'Autoriser'
+            // Essayer de redemander la permission automatiquement
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
               navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
-                  setVoiceError(null)
+                  setVoiceErrorModal(false)
+                  setVoiceErrorDetails(null)
                   sendNotification('✅ Permission accordée', 'Vous pouvez maintenant utiliser les commandes vocales.')
                 })
                 .catch(() => {
-                  // Permission toujours refusée
+                  // Permission toujours refusée, on affiche le modal
                 })
             }
             break
           case 'network':
-            setVoiceError('Erreur réseau. La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
-            sendNotification('⚠️ Commande vocale', 'Erreur réseau. Vérifiez votre connexion Internet.')
-            // La reconnaissance vocale nécessite Internet, on ne peut pas continuer
+            errorTitle = 'Connexion Internet requise'
+            errorMessage = 'La reconnaissance vocale nécessite une connexion Internet active. Vérifiez votre connexion et réessayez.'
+            errorAction = 'Compris'
             break
           case 'aborted':
             // L'utilisateur a arrêté manuellement, pas d'erreur à afficher
-            break
+            return
           default:
-            setVoiceError(`Erreur: ${event.error}. Réessayez ou consultez l'aide.`)
-            sendNotification('⚠️ Commande vocale', `Erreur: ${event.error}`)
+            errorTitle = 'Erreur de reconnaissance'
+            errorMessage = `Une erreur s'est produite: ${event.error}. Réessayez ou consultez l'aide pour plus d'informations.`
+            errorAction = 'Fermer'
         }
         
-        // Réinitialiser après affichage de l'erreur (sauf si c'est juste un arrêt)
-        if (event.error !== 'aborted') {
-          setTimeout(() => {
-            setVoiceError(null)
-          }, 5000) // Plus long pour les erreurs importantes
-        }
+        // Afficher le modal d'erreur au centre de l'écran
+        setVoiceErrorDetails({
+          title: errorTitle,
+          message: errorMessage,
+          action: errorAction
+        })
+        setShowVoiceErrorModal(true)
+        setVoiceError(errorMessage) // Pour l'affichage dans le menu aussi
+        
+        // Ne pas envoyer de notification pour éviter le spam
       }
       
       // Quand la reconnaissance se termine
@@ -451,27 +466,62 @@ export default function TaskflowPage() {
     }
   }, [])
 
-  // 🎤 Vérifier la disponibilité du microphone
+  // 🎤 Vérifier la disponibilité du microphone (sans demander la permission, juste vérifier)
   const checkMicrophoneAvailability = async (): Promise<boolean> => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setVoiceError('API microphone non disponible dans ce navigateur.')
+      setVoiceErrorDetails({
+        title: 'Navigateur non compatible',
+        message: 'Votre navigateur ne supporte pas les commandes vocales. Utilisez Chrome, Edge ou Safari.',
+        action: 'Fermer'
+      })
+      setShowVoiceErrorModal(true)
       return false
     }
     
+    // Vérifier si on a déjà la permission
+    try {
+      const permissions = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+      if (permissions.state === 'denied') {
+        setVoiceErrorDetails({
+          title: 'Permission microphone refusée',
+          message: 'L\'accès au microphone a été refusé. Pour utiliser les commandes vocales, autorisez l\'accès dans les paramètres de votre navigateur (icône 🔒 dans la barre d\'adresse).',
+          action: 'Fermer'
+        })
+        setShowVoiceErrorModal(true)
+        return false
+      }
+    } catch (e) {
+      // L'API permissions n'est pas disponible, on continue
+    }
+    
+    // Essayer d'obtenir l'accès (demande automatique de permission)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      // Libérer le stream immédiatement, on voulait juste vérifier
+      // Libérer le stream immédiatement, on voulait juste vérifier/obtenir la permission
       stream.getTracks().forEach(track => track.stop())
       return true
     } catch (error: any) {
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        setVoiceError('Permission microphone requise. Cliquez sur 🔒 dans la barre d\'adresse.')
-        sendNotification('⚠️ Permission requise', 'Autorisez l\'accès au microphone pour utiliser les commandes vocales.')
+        setVoiceErrorDetails({
+          title: 'Permission microphone requise',
+          message: 'Pour utiliser les commandes vocales, vous devez autoriser l\'accès au microphone. Cliquez sur "Autoriser" pour continuer.',
+          action: 'Autoriser'
+        })
+        setShowVoiceErrorModal(true)
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        setVoiceError('Aucun microphone détecté. Vérifiez que votre microphone est connecté.')
-        sendNotification('⚠️ Microphone introuvable', 'Vérifiez que votre microphone est connecté et fonctionne.')
+        setVoiceErrorDetails({
+          title: 'Microphone introuvable',
+          message: 'Aucun microphone n\'a été détecté. Vérifiez que votre microphone est connecté et fonctionne correctement.',
+          action: 'Fermer'
+        })
+        setShowVoiceErrorModal(true)
       } else {
-        setVoiceError(`Erreur microphone: ${error.message}`)
+        setVoiceErrorDetails({
+          title: 'Erreur microphone',
+          message: `Une erreur s'est produite: ${error.message || error.name}`,
+          action: 'Fermer'
+        })
+        setShowVoiceErrorModal(true)
       }
       return false
     }
@@ -713,6 +763,8 @@ export default function TaskflowPage() {
         setShowEnergyModal(false)
         setShowRemindersModal(false)
         setShowTimelineModal(false)
+        setShowVoiceErrorModal(false)
+        setShowVoiceHelpModal(false)
       }
     }
     

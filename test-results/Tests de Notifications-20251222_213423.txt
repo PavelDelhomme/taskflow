@@ -1,0 +1,49 @@
+🧪 ==========================================
+🧪 Tests des notifications push TaskFlow
+🧪 ==========================================
+
+📦 1. Vérification Docker...
+[0;32m✓ Docker fonctionne[0m
+
+🐳 2. Vérification des conteneurs...
+  [0;32m✓[0m taskflow-api est en cours d'exécution
+  [0;32m✓[0m taskflow-web est en cours d'exécution
+  [0;32m✓[0m taskflow-db est en cours d'exécution
+
+⏳ 3. Attente que les services soient prêts...
+🔐 4. Tests d'authentification...
+  [0;32m✓ Authentification réussie[0m
+
+🔔 5. Tests des rappels...
+  Testing GET /reminders/pending... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /reminders (création)... [0;32m✓ OK[0m (HTTP 200)
+  Testing POST /reminders/auto-create... [0;32m✓ OK[0m (HTTP 200)
+
+🌐 6. Test de l'application web...
+  [0;32m✓ Application web accessible[0m (HTTP 200)
+
+⚙️  7. Vérification du Service Worker...
+  [0;32m✓ Service Worker accessible[0m (HTTP 200)
+  [0;32m✓ Service Worker contient la fonction scheduleNotification[0m
+  [0;32m✓ Service Worker contient la fonction syncRemindersFromAPI[0m
+
+📋 8. Instructions pour tester manuellement les notifications :
+
+[0;34mPour tester les notifications en arrière-plan :[0m
+  1. Ouvrez http://localhost:4000 dans votre navigateur
+  2. Connectez-vous avec admin@taskflow.local / taskflow123
+  3. Autorisez les notifications quand le navigateur le demande
+  4. Vérifiez dans les DevTools (Application > Service Workers) que le SW est actif
+  5. Créez un rappel avec une date/heure dans quelques minutes
+  6. Fermez l'onglet du navigateur
+  7. Attendez l'heure du rappel
+  8. Une notification devrait apparaître même si l'app est fermée
+
+📊 ==========================================
+📊 Résumé des tests
+📊 ==========================================
+  [0;32m✓ Succès: 11[0m
+  [0;31m✗ Erreurs: 0[0m
+
+[0;32m🎉 Tous les tests sont passés avec succès ![0m
+[1;33m⚠️  N'oubliez pas de tester manuellement les notifications en arrière-plan[0m

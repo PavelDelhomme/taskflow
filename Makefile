@@ -1,4 +1,4 @@
-.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache test-check
+.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache test-check test-all
 
 help:
 	@echo "🎯 TaskFlow ADHD - Commandes Docker"
@@ -18,6 +18,7 @@ help:
 	@echo "  make clean-test => Supprime les données de test (conserve l'utilisateur)"
 	@echo "  make migrate => Applique les migrations de base de données"
 	@echo "  make test-check => Vérifie que tous les services sont opérationnels"
+	@echo "  make test-all => Lance tous les tests et analyse les résultats"
 	@echo "  make clean   => Nettoie Docker"
 	@echo ""
 	@echo "🌐 Accès:"
@@ -96,6 +97,10 @@ clean-cache:
 test-check:
 	@echo "🧪 Vérification de l'environnement..."
 	@./test-checklist.sh
+
+test-all:
+	@echo "🧪 Lancement de tous les tests..."
+	@./test-all.sh
 
 clean:
 	docker-compose down -v

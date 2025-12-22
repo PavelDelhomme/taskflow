@@ -108,6 +108,27 @@ test_endpoint_detailed() {
 
 # 1. Authentification
 echo "🔐 1. Tests d'authentification étendus..."
+
+# Attendre que l'API soit prête (surtout pour l'environnement de test)
+echo "⏳ Vérification que l'API est prête..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+API_READY=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s -f "$API_URL/health" > /dev/null 2>&1; then
+        API_READY=true
+        break
+    fi
+    ((RETRY_COUNT++))
+    sleep 1
+done
+
+if [ "$API_READY" = false ]; then
+    echo -e "  ${RED}✗ L'API n'est pas prête après $MAX_RETRIES tentatives${NC}"
+    exit 1
+fi
+
 LOGIN_RESPONSE=$(curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@taskflow.local","password":"taskflow123"}' \
@@ -121,6 +142,8 @@ fi
 
 if [ -z "$TOKEN" ]; then
     echo -e "  ${RED}✗ Échec de l'authentification${NC}"
+    echo "  Réponse API: $LOGIN_RESPONSE"
+    echo "  💡 Vérifiez que la base de données est initialisée et que l'utilisateur admin@taskflow.local existe"
     exit 1
 fi
 

@@ -420,8 +420,20 @@ export default function TaskflowPage() {
       
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
-        // Ne pas logger dans la console pour éviter le spam
+        // Ne JAMAIS logger dans la console pour éviter le spam
         setIsListening(false)
+        
+        // Pour l'erreur 'network', arrêter silencieusement sans afficher de modal
+        if (event.error === 'network') {
+          setVoiceCommandText('')
+          // Ne rien afficher, juste arrêter
+          return
+        }
+        
+        // Pour l'erreur 'aborted', l'utilisateur a arrêté manuellement
+        if (event.error === 'aborted') {
+          return
+        }
         
         let errorTitle = 'Erreur de reconnaissance vocale'
         let errorMessage = ''
@@ -455,37 +467,19 @@ export default function TaskflowPage() {
                 })
             }
             break
-          case 'network':
-            // Ne pas afficher le modal pour l'erreur réseau si on l'a déjà vérifié
-            // Juste arrêter l'écoute silencieusement
-            errorTitle = 'Connexion Internet requise'
-            errorMessage = 'La reconnaissance vocale nécessite une connexion Internet active. Vérifiez votre connexion et réessayez.'
-            errorAction = 'Compris'
-            // Ne pas afficher le modal si c'est juste une erreur réseau passagère
-            // L'utilisateur peut réessayer
-            break
-          case 'aborted':
-            // L'utilisateur a arrêté manuellement, pas d'erreur à afficher
-            return
           default:
             errorTitle = 'Erreur de reconnaissance'
             errorMessage = `Une erreur s'est produite: ${event.error}. Réessayez ou consultez l'aide pour plus d'informations.`
             errorAction = 'Fermer'
         }
         
-        // Afficher le modal d'erreur au centre de l'écran (sauf pour 'network' qui est géré différemment)
-        if (event.error !== 'network') {
-          setVoiceErrorDetails({
-            title: errorTitle,
-            message: errorMessage,
-            action: errorAction
-          })
-          setShowVoiceErrorModal(true)
-        } else {
-          // Pour l'erreur réseau, juste afficher un message simple sans modal répétitif
-          setVoiceError(errorMessage)
-          // Le modal ne s'affiche que si l'utilisateur essaie de démarrer sans Internet
-        }
+        // Afficher le modal d'erreur au centre de l'écran
+        setVoiceErrorDetails({
+          title: errorTitle,
+          message: errorMessage,
+          action: errorAction
+        })
+        setShowVoiceErrorModal(true)
       }
       
       // Quand la reconnaissance se termine
@@ -2389,7 +2383,18 @@ export default function TaskflowPage() {
                         <button 
                           className={`mobile-menu-item ${isListening ? 'mobile-menu-item-active' : ''}`}
                           onClick={async () => {
-                            await toggleSpeechRecognition()
+                            if (isListening) {
+                              // Arrêter l'écoute
+                              if (recognition) {
+                                recognition.stop()
+                                setIsListening(false)
+                                setVoiceCommandText('')
+                                sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
+                              }
+                            } else {
+                              // Démarrer l'écoute
+                              await toggleSpeechRecognition()
+                            }
                           }}
                         >
                           <span className="mobile-menu-icon">{isListening ? '⏹️' : '▶️'}</span>
@@ -2397,6 +2402,20 @@ export default function TaskflowPage() {
                             {isListening ? 'Arrêter l\'écoute' : 'Démarrer l\'écoute'}
                           </span>
                         </button>
+                        {isListening && (
+                          <div style={{ 
+                            padding: '8px', 
+                            marginTop: '4px',
+                            backgroundColor: 'var(--color-success)',
+                            borderRadius: '4px',
+                            color: 'white',
+                            fontSize: '0.85em',
+                            textAlign: 'center',
+                            fontWeight: 'bold'
+                          }}>
+                            🎤 Écoute active - Parlez maintenant
+                          </div>
+                        )}
                         <button 
                           className="mobile-menu-item"
                           onClick={() => {

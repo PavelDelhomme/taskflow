@@ -388,12 +388,14 @@ export default function TaskflowPage() {
         
         // Afficher la transcription en temps réel
         if (interimTranscript) {
+          console.log('[VOICE] 📝 Transcription (interim):', interimTranscript)
           setVoiceCommandText(interimTranscript)
         }
         
         // Traiter la commande finale
         if (finalTranscript) {
           const command = finalTranscript.toLowerCase().trim()
+          console.log('[VOICE] ✅ Commande reconnue:', command)
           setVoiceCommandText(command)
           handleVoiceCommand(command)
           // Réinitialiser après un court délai
@@ -405,31 +407,33 @@ export default function TaskflowPage() {
       
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
-        // Ne JAMAIS logger dans la console pour éviter le spam
+        console.log('[VOICE] ❌ onerror:', event.error, { isListening })
         
         // Pour l'erreur 'network', ne pas arrêter immédiatement - laisser une chance
         if (event.error === 'network') {
+          console.log('[VOICE] ⚠️ Erreur réseau détectée, attente de 2 secondes...')
           // Ne pas arrêter l'écoute immédiatement, juste afficher un message
           setVoiceCommandText('⚠️ Vérification de la connexion...')
           // Attendre un peu avant d'arrêter pour voir si ça se rétablit
           setTimeout(() => {
-            if (isListening) {
-              setIsListening(false)
-              setVoiceCommandText('')
-              sendNotification('⚠️ Connexion requise', 'La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
-            }
+            console.log('[VOICE] ⏹️ Arrêt après délai (erreur réseau)')
+            setIsListening(false)
+            setVoiceCommandText('')
+            sendNotification('⚠️ Connexion requise', 'La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
           }, 2000) // Attendre 2 secondes
           return
         }
         
         // Pour l'erreur 'aborted', l'utilisateur a arrêté manuellement
         if (event.error === 'aborted') {
+          console.log('[VOICE] ⏹️ Arrêt manuel (aborted)')
           setIsListening(false)
           setVoiceCommandText('')
           return
         }
         
         // Pour les autres erreurs, arrêter l'écoute
+        console.log('[VOICE] ⏹️ Arrêt à cause de l\'erreur:', event.error)
         setIsListening(false)
         
         let errorTitle = 'Erreur de reconnaissance vocale'
@@ -481,23 +485,25 @@ export default function TaskflowPage() {
       
       // Quand la reconnaissance se termine
       recognition.onend = () => {
+        console.log('[VOICE] ⏹️ onend appelé', { isListening })
         // Si onend est appelé, la session est terminée
         // On arrête l'écoute seulement si elle était active
         if (isListening) {
+          console.log('[VOICE] ⏹️ Arrêt de l\'écoute (onend)')
           setIsListening(false)
           setVoiceCommandText('')
+        } else {
+          console.log('[VOICE] ℹ️ onend appelé mais isListening est déjà false')
         }
       }
       
       // Quand la reconnaissance commence
       recognition.onstart = () => {
+        console.log('[VOICE] ✅ onstart: Reconnaissance démarrée avec succès')
         setIsListening(true)
         setVoiceError(null)
-        setVoiceCommandText('🎤 Écoute en cours... Parlez maintenant')
-        // Notification seulement la première fois pour éviter le spam
-        if (!isListening) {
-          sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
-        }
+        setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
+        sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
       }
       
         setRecognition(recognition)
@@ -572,7 +578,11 @@ export default function TaskflowPage() {
 
   // 🎤 Toggle de la reconnaissance vocale
   const toggleSpeechRecognition = async () => {
+    // Log pour debug (visible dans la console du navigateur)
+    console.log('[VOICE] toggleSpeechRecognition appelé', { isListening, hasRecognition: !!recognition })
+    
     if (!recognition) {
+      console.log('[VOICE] ❌ Reconnaissance non disponible')
       setVoiceErrorDetails({
         title: 'Reconnaissance vocale non disponible',
         message: 'Votre navigateur ne supporte pas les commandes vocales. Utilisez Chrome, Edge ou Safari.',
@@ -584,50 +594,68 @@ export default function TaskflowPage() {
     
     if (isListening) {
       // Arrêter l'écoute
+      console.log('[VOICE] ⏹️ Arrêt de l\'écoute')
       try {
         recognition.stop()
         setIsListening(false)
         setVoiceCommandText('')
         sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
+        console.log('[VOICE] ✅ Écoute arrêtée avec succès')
       } catch (error) {
+        console.log('[VOICE] ⚠️ Erreur à l\'arrêt:', error)
         // Si erreur à l'arrêt, forcer l'arrêt
         setIsListening(false)
         setVoiceCommandText('')
       }
     } else {
       // Démarrer l'écoute
-      // Vérifier le microphone avant de démarrer (mais ne pas bloquer sur Internet)
+      console.log('[VOICE] ▶️ Démarrage de l\'écoute...')
+      
+      // Vérifier le microphone avant de démarrer
+      console.log('[VOICE] 🔍 Vérification du microphone...')
       const micAvailable = await checkMicrophoneAvailability()
       if (!micAvailable) {
+        console.log('[VOICE] ❌ Microphone non disponible')
         return // L'erreur est déjà affichée par checkMicrophoneAvailability
       }
+      console.log('[VOICE] ✅ Microphone disponible')
       
       // Vérifier Internet (mais ne pas bloquer - laisser le navigateur gérer)
       const hasInternet = navigator.onLine
+      console.log('[VOICE] 🌐 Connexion Internet:', hasInternet ? '✅' : '⚠️')
       if (!hasInternet) {
         // Avertir mais permettre quand même
         sendNotification('⚠️ Pas de connexion', 'La reconnaissance vocale nécessite Internet. Tentative de démarrage...')
       }
       
+      // Forcer isListening à true AVANT de démarrer pour que le bouton reste visible
+      setIsListening(true)
+      setVoiceCommandText('🎤 Démarrage...')
+      
       try {
+        console.log('[VOICE] 🚀 Appel de recognition.start()...')
         recognition.start()
-        // Ne pas mettre isListening à true ici, onstart le fera
-        setVoiceCommandText('🎤 Démarrage...')
-        // La notification sera envoyée par onstart
+        console.log('[VOICE] ✅ recognition.start() appelé avec succès')
+        // onstart mettra à jour isListening et le texte
       } catch (error: any) {
+        console.log('[VOICE] ❌ Erreur lors du démarrage:', error.message || error)
         setIsListening(false)
         setVoiceCommandText('')
         
         if (error.message?.includes('already started') || error.message?.includes('started')) {
+          console.log('[VOICE] ⚠️ Déjà démarré, redémarrage...')
           // La reconnaissance est déjà en cours, on l'arrête d'abord puis on redémarre
           try {
             recognition.stop()
             setTimeout(() => {
               try {
+                console.log('[VOICE] 🔄 Nouvelle tentative de démarrage...')
                 recognition.start()
                 setIsListening(true)
                 setVoiceCommandText('🎤 Écoute en cours...')
-              } catch (e) {
+              } catch (e: any) {
+                console.log('[VOICE] ❌ Erreur lors du redémarrage:', e.message || e)
+                setIsListening(false)
                 setVoiceErrorDetails({
                   title: 'Erreur de démarrage',
                   message: 'Erreur lors du redémarrage. Réessayez dans quelques secondes.',
@@ -637,7 +665,8 @@ export default function TaskflowPage() {
               }
             }, 300)
           } catch (stopError) {
-            // Ignorer l'erreur d'arrêt
+            console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
+            setIsListening(false)
           }
         } else {
           setVoiceErrorDetails({

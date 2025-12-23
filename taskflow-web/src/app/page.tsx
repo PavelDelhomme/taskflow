@@ -406,19 +406,31 @@ export default function TaskflowPage() {
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
         // Ne JAMAIS logger dans la console pour éviter le spam
-        setIsListening(false)
         
-        // Pour l'erreur 'network', arrêter silencieusement sans afficher de modal
+        // Pour l'erreur 'network', ne pas arrêter immédiatement - laisser une chance
         if (event.error === 'network') {
-          setVoiceCommandText('')
-          // Ne rien afficher, juste arrêter
+          // Ne pas arrêter l'écoute immédiatement, juste afficher un message
+          setVoiceCommandText('⚠️ Vérification de la connexion...')
+          // Attendre un peu avant d'arrêter pour voir si ça se rétablit
+          setTimeout(() => {
+            if (isListening) {
+              setIsListening(false)
+              setVoiceCommandText('')
+              sendNotification('⚠️ Connexion requise', 'La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
+            }
+          }, 2000) // Attendre 2 secondes
           return
         }
         
         // Pour l'erreur 'aborted', l'utilisateur a arrêté manuellement
         if (event.error === 'aborted') {
+          setIsListening(false)
+          setVoiceCommandText('')
           return
         }
+        
+        // Pour les autres erreurs, arrêter l'écoute
+        setIsListening(false)
         
         let errorTitle = 'Erreur de reconnaissance vocale'
         let errorMessage = ''
@@ -481,8 +493,11 @@ export default function TaskflowPage() {
       recognition.onstart = () => {
         setIsListening(true)
         setVoiceError(null)
-        setVoiceCommandText('🎤 Écoute en cours...')
-        sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
+        setVoiceCommandText('🎤 Écoute en cours... Parlez maintenant')
+        // Notification seulement la première fois pour éviter le spam
+        if (!isListening) {
+          sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
+        }
       }
       
         setRecognition(recognition)
@@ -596,9 +611,9 @@ export default function TaskflowPage() {
       
       try {
         recognition.start()
-        setIsListening(true)
-        setVoiceCommandText('🎤 Écoute en cours...')
-        sendNotification('🎤 Écoute active', 'Parlez votre commande maintenant...')
+        // Ne pas mettre isListening à true ici, onstart le fera
+        setVoiceCommandText('🎤 Démarrage...')
+        // La notification sera envoyée par onstart
       } catch (error: any) {
         setIsListening(false)
         setVoiceCommandText('')

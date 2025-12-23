@@ -545,7 +545,7 @@ export default function TaskflowPage() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
               navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
-                  setVoiceErrorModal(false)
+                  setShowVoiceErrorModal(false)
                   setVoiceErrorDetails(null)
                   sendNotification('✅ Permission accordée', 'Vous pouvez maintenant utiliser les commandes vocales.')
                 })

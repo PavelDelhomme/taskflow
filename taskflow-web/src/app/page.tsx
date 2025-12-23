@@ -368,9 +368,23 @@ export default function TaskflowPage() {
       if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
         const recognition = new SpeechRecognition()
-        recognition.continuous = false
+        recognition.continuous = true // Mode continu pour éviter les arrêts automatiques
         recognition.interimResults = true // Activer pour transcription en temps réel
         recognition.lang = 'fr-FR'
+        
+        // Vérifier si on est en HTTPS ou localhost (requis pour la reconnaissance vocale)
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        if (!isSecure) {
+          console.log('[VOICE] ⚠️ La reconnaissance vocale nécessite HTTPS ou localhost')
+          setVoiceErrorDetails({
+            title: 'HTTPS requis',
+            message: 'La reconnaissance vocale nécessite une connexion HTTPS (ou localhost). Utilisez https:// ou testez en local.',
+            action: 'Fermer'
+          })
+          setShowVoiceErrorModal(true)
+          setVoiceCommandsEnabled(false)
+          return
+        }
       
       // Transcription en temps réel (interim results)
       recognition.onresult = (event: any) => {
@@ -407,20 +421,43 @@ export default function TaskflowPage() {
       
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
-        console.log('[VOICE] ❌ onerror:', event.error, { isListening })
+        console.log('[VOICE] ❌ onerror:', event.error, { isListening, timestamp: new Date().toISOString() })
         
-        // Pour l'erreur 'network', ne pas arrêter immédiatement - laisser une chance
+        // Pour l'erreur 'network', essayer de redémarrer automatiquement
         if (event.error === 'network') {
-          console.log('[VOICE] ⚠️ Erreur réseau détectée, attente de 2 secondes...')
-          // Ne pas arrêter l'écoute immédiatement, juste afficher un message
-          setVoiceCommandText('⚠️ Vérification de la connexion...')
-          // Attendre un peu avant d'arrêter pour voir si ça se rétablit
+          console.log('[VOICE] ⚠️ Erreur réseau détectée, tentative de redémarrage...')
+          setVoiceCommandText('⚠️ Reconnexion...')
+          
+          // Ne pas arrêter, essayer de redémarrer après un court délai
           setTimeout(() => {
-            console.log('[VOICE] ⏹️ Arrêt après délai (erreur réseau)')
-            setIsListening(false)
-            setVoiceCommandText('')
-            sendNotification('⚠️ Connexion requise', 'La reconnaissance vocale nécessite Internet. Vérifiez votre connexion.')
-          }, 2000) // Attendre 2 secondes
+            if (isListening) {
+              console.log('[VOICE] 🔄 Tentative de redémarrage après erreur réseau...')
+              try {
+                recognition.stop()
+                setTimeout(() => {
+                  try {
+                    recognition.start()
+                    console.log('[VOICE] ✅ Redémarrage réussi après erreur réseau')
+                    setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
+                  } catch (restartError: any) {
+                    console.log('[VOICE] ❌ Échec du redémarrage:', restartError.message || restartError)
+                    setIsListening(false)
+                    setVoiceCommandText('')
+                    setVoiceErrorDetails({
+                      title: 'Erreur de connexion',
+                      message: 'Impossible de se connecter aux serveurs de reconnaissance vocale. Vérifiez votre connexion Internet et réessayez.',
+                      action: 'Réessayer'
+                    })
+                    setShowVoiceErrorModal(true)
+                  }
+                }, 500)
+              } catch (stopError) {
+                console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
+                setIsListening(false)
+                setVoiceCommandText('')
+              }
+            }
+          }, 1000) // Attendre 1 seconde avant de redémarrer
           return
         }
         
@@ -485,13 +522,23 @@ export default function TaskflowPage() {
       
       // Quand la reconnaissance se termine
       recognition.onend = () => {
-        console.log('[VOICE] ⏹️ onend appelé', { isListening })
-        // Si onend est appelé, la session est terminée
-        // On arrête l'écoute seulement si elle était active
+        console.log('[VOICE] ⏹️ onend appelé', { isListening, timestamp: new Date().toISOString() })
+        
+        // En mode continuous, onend peut être appelé pour une pause, pas forcément un arrêt
+        // Ne pas arrêter automatiquement si l'utilisateur veut continuer
+        // Seulement arrêter si c'est vraiment la fin (pas d'erreur réseau récente)
         if (isListening) {
-          console.log('[VOICE] ⏹️ Arrêt de l\'écoute (onend)')
-          setIsListening(false)
-          setVoiceCommandText('')
+          console.log('[VOICE] ⏹️ onend appelé alors que isListening est true - peut-être une pause')
+          // En mode continuous, on peut redémarrer automatiquement
+          // Mais pour l'instant, on arrête pour éviter les boucles infinies
+          // L'utilisateur peut redémarrer manuellement
+          setTimeout(() => {
+            if (isListening) {
+              console.log('[VOICE] ⏹️ Arrêt après onend (mode continuous)')
+              setIsListening(false)
+              setVoiceCommandText('')
+            }
+          }, 500)
         } else {
           console.log('[VOICE] ℹ️ onend appelé mais isListening est déjà false')
         }
@@ -499,11 +546,20 @@ export default function TaskflowPage() {
       
       // Quand la reconnaissance commence
       recognition.onstart = () => {
-        console.log('[VOICE] ✅ onstart: Reconnaissance démarrée avec succès')
+        console.log('[VOICE] ✅ onstart: Reconnaissance démarrée avec succès', { timestamp: new Date().toISOString() })
+        // Forcer isListening à true immédiatement
         setIsListening(true)
         setVoiceError(null)
         setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
         sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
+        
+        // Vérifier après 1 seconde si on est toujours en écoute
+        setTimeout(() => {
+          if (!isListening) {
+            console.log('[VOICE] ⚠️ isListening est false après onstart, correction...')
+            setIsListening(true)
+          }
+        }, 1000)
       }
       
         setRecognition(recognition)

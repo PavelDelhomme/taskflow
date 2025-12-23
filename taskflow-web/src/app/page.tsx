@@ -345,15 +345,27 @@ export default function TaskflowPage() {
 
   // 🎤 Vérifier la connexion Internet
   const checkInternetConnection = async (): Promise<boolean> => {
+    // Vérifier d'abord l'état du navigateur
+    if (navigator.onLine === false) {
+      return false
+    }
+    
+    // Vérifier avec une requête réelle (avec timeout)
     try {
-      // Essayer de charger une petite ressource pour vérifier la connexion
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 secondes max
+      
       const response = await fetch('https://www.google.com/favicon.ico', { 
         method: 'HEAD',
         mode: 'no-cors',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
       return true
     } catch (error) {
+      // Si erreur, on considère qu'il n'y a pas de connexion
       return false
     }
   }

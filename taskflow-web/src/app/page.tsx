@@ -2260,14 +2260,41 @@ export default function TaskflowPage() {
               {/* Actions principales - toujours visibles */}
               <div className="navbar-actions-primary">
                 {recognition && (
-                  <button
-                    className={`btn-nav btn-nav-icon btn-nav-voice ${isListening ? 'listening' : ''}`}
-                    onClick={toggleSpeechRecognition}
-                    title="Commandes vocales (Ctrl+Shift+V)"
-                    disabled={!voiceCommandsEnabled}
-                  >
-                    <span className={isListening ? 'pulse-animation' : ''}>🎤</span>
-                    <span className="btn-label">{isListening ? 'Écoute...' : 'Voix'}</span>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button
+                      className={`btn-nav btn-nav-icon btn-nav-voice ${isListening ? 'listening' : ''}`}
+                      onClick={toggleSpeechRecognition}
+                      title={isListening ? "Arrêter l'écoute (Ctrl+Shift+V)" : "Démarrer l'écoute (Ctrl+Shift+V)"}
+                      disabled={!voiceCommandsEnabled}
+                    >
+                      <span className={isListening ? 'pulse-animation' : ''}>🎤</span>
+                      <span className="btn-label">{isListening ? 'Écoute...' : 'Voix'}</span>
+                    </button>
+                    {isListening && (
+                      <button
+                        className="btn-nav btn-nav-icon"
+                        onClick={() => {
+                          if (recognition) {
+                            recognition.stop()
+                            setIsListening(false)
+                            setVoiceCommandText('')
+                            sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
+                          }
+                        }}
+                        title="Arrêter l'écoute"
+                        style={{ 
+                          padding: '4px 8px',
+                          fontSize: '0.8em',
+                          backgroundColor: 'var(--color-error)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ⏹️
+                      </button>
+                    )}
                     {voiceCommandText && (
                       <span className="voice-transcript" title={voiceCommandText}>
                         {voiceCommandText.length > 30 ? voiceCommandText.substring(0, 30) + '...' : voiceCommandText}
@@ -2278,7 +2305,7 @@ export default function TaskflowPage() {
                         ⚠️ {voiceError}
                       </span>
                     )}
-                  </button>
+                  </div>
                 )}
                 <button 
                   className="btn-nav btn-nav-primary btn-nav-priority" 

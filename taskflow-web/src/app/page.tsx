@@ -172,6 +172,7 @@ export default function TaskflowPage() {
   const [showVoiceErrorModal, setShowVoiceErrorModal] = useState(false)
   const [voiceErrorDetails, setVoiceErrorDetails] = useState<{title: string, message: string, action?: string} | null>(null)
   const [networkRetryCount, setNetworkRetryCount] = useState(0) // Compteur de tentatives réseau
+  const [isNetworkErrorHandling, setIsNetworkErrorHandling] = useState(false) // Flag pour éviter les appels multiples
   
   // 🧠 Mécanisme d'attention intelligent (tracking en arrière-plan pour l'IA)
   const [currentFocusTask, setCurrentFocusTask] = useState<number | null>(null)
@@ -441,88 +442,117 @@ export default function TaskflowPage() {
         
         // Pour l'erreur 'network', essayer de redémarrer automatiquement (max 2 tentatives)
         if (event.error === 'network') {
-          // Utiliser la fonction de mise à jour pour avoir la valeur à jour
-          setNetworkRetryCount(prevCount => {
-            const newRetryCount = prevCount + 1
-            console.log(`[VOICE] ❌ Erreur réseau: Brave bloque probablement Google (tentative ${newRetryCount}/2)`)
-            
-            setIsListening(false) // Arrêter l'état d'écoute immédiatement
-            
-            // Arrêter immédiatement la reconnaissance pour éviter les boucles
-            try {
-              recognition.stop()
-            } catch (e) {
-              // Ignorer les erreurs d'arrêt
+          // Vérifier si on est déjà en train de gérer une erreur réseau (éviter les appels multiples)
+          setIsNetworkErrorHandling(prev => {
+            if (prev) {
+              console.log('[VOICE] ⚠️ Erreur réseau déjà en cours de traitement, ignorer')
+              return prev
             }
             
-            if (newRetryCount <= 2) {
-              console.log(`[VOICE] ⚠️ Erreur réseau détectée, tentative ${newRetryCount}/2...`)
-              setVoiceCommandText(`❌ Erreur réseau - Reconnexion... (${newRetryCount}/2)`)
-              
-              // Essayer de redémarrer après un court délai (seulement si on n'a pas atteint la limite)
-              setTimeout(() => {
-                // Vérifier à nouveau avec la valeur à jour
-                setNetworkRetryCount(currentCount => {
-                  if (currentCount >= 2) {
-                    console.log('[VOICE] ❌ Limite atteinte, arrêt définitif')
-                    setIsListening(false)
-                    setVoiceCommandText('❌ Connexion impossible - Brave bloque Google')
-                    const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
-                    setVoiceErrorDetails({
-                      title: 'Connexion impossible',
-                      message: isBrave 
-                        ? 'Brave bloque toujours les connexions Google. Solutions :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Vérifiez aussi brave://settings/shields (désactivez le bouclier pour localhost:4000)\n5. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
-                        : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez. Si le problème persiste, utilisez Chrome ou Edge.',
-                      action: 'Fermer'
-                    })
-                    setShowVoiceErrorModal(true)
-                    // Désactiver complètement la reconnaissance vocale pour éviter les boucles
-                    setVoiceCommandsEnabled(false)
-                    return currentCount // Ne pas modifier le compteur
-                  }
-                  
-                  console.log('[VOICE] 🔄 Tentative de redémarrage après erreur réseau...')
-                  try {
-                    recognition.stop()
-                    setTimeout(() => {
-                      try {
-                        recognition.start()
-                        console.log('[VOICE] ✅ Redémarrage réussi après erreur réseau')
-                        setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
-                        // Ne PAS réinitialiser le compteur ici - on veut garder le compteur pour éviter les boucles
-                      } catch (restartError: any) {
-                        console.log('[VOICE] ❌ Échec du redémarrage:', restartError.message || restartError)
-                        setIsListening(false)
-                        setVoiceCommandText('❌ Échec de la reconnexion')
-                      }
-                    }, 500)
-                  } catch (stopError) {
-                    console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
-                    setIsListening(false)
-                    setVoiceCommandText('❌ Erreur lors de l\'arrêt')
-                  }
-                  return currentCount // Ne pas modifier le compteur
+            // Utiliser la fonction de mise à jour pour avoir la valeur à jour
+            setNetworkRetryCount(prevCount => {
+              // Vérifier AVANT d'incrémenter si on a déjà atteint la limite
+              if (prevCount >= 2) {
+                console.log('[VOICE] ❌ Limite déjà atteinte, arrêt définitif')
+                setIsListening(false)
+                setVoiceCommandText('❌ Connexion impossible - Brave bloque Google')
+                const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+                setVoiceErrorDetails({
+                  title: 'Connexion impossible',
+                  message: isBrave 
+                    ? 'Brave bloque toujours les connexions Google. Solutions :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Vérifiez aussi brave://settings/shields (désactivez le bouclier pour localhost:4000)\n5. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
+                    : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez. Si le problème persiste, utilisez Chrome ou Edge.',
+                  action: 'Fermer'
                 })
-              }, 1000) // Attendre 1 seconde avant de redémarrer
-            } else {
-              // Trop de tentatives - ARRÊTER DÉFINITIVEMENT
-              console.log('[VOICE] ❌ Trop de tentatives réseau, arrêt définitif')
-              setIsListening(false)
-              setVoiceCommandText('❌ Connexion impossible - Brave bloque Google')
-              const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
-              setVoiceErrorDetails({
-                title: 'Connexion impossible',
-                message: isBrave 
-                  ? 'Brave bloque toujours les connexions Google. Solutions :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Vérifiez aussi brave://settings/shields (désactivez le bouclier pour localhost:4000)\n5. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
-                  : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez.',
-                action: 'Fermer'
-              })
-              setShowVoiceErrorModal(true)
-              // Désactiver complètement la reconnaissance vocale pour éviter les boucles
-              setVoiceCommandsEnabled(false)
-            }
+                setShowVoiceErrorModal(true)
+                setVoiceCommandsEnabled(false)
+                return prevCount // Ne pas modifier le compteur
+              }
+              
+              const newRetryCount = prevCount + 1
+              console.log(`[VOICE] ❌ Erreur réseau: Brave bloque probablement Google (tentative ${newRetryCount}/2)`)
+              
+              setIsListening(false) // Arrêter l'état d'écoute immédiatement
+              
+              // Arrêter immédiatement la reconnaissance pour éviter les boucles
+              try {
+                recognition.stop()
+              } catch (e) {
+                // Ignorer les erreurs d'arrêt
+              }
+              
+              if (newRetryCount <= 2) {
+                console.log(`[VOICE] ⚠️ Erreur réseau détectée, tentative ${newRetryCount}/2...`)
+                setVoiceCommandText(`❌ Erreur réseau - Reconnexion... (${newRetryCount}/2)`)
+                
+                // Essayer de redémarrer après un court délai (seulement si on n'a pas atteint la limite)
+                setTimeout(() => {
+                  setNetworkRetryCount(currentCount => {
+                    if (currentCount >= 2) {
+                      console.log('[VOICE] ❌ Limite atteinte, arrêt définitif')
+                      setIsListening(false)
+                      setVoiceCommandText('❌ Connexion impossible - Brave bloque Google')
+                      const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+                      setVoiceErrorDetails({
+                        title: 'Connexion impossible',
+                        message: isBrave 
+                          ? 'Brave bloque toujours les connexions Google. Solutions :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Vérifiez aussi brave://settings/shields (désactivez le bouclier pour localhost:4000)\n5. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
+                          : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez. Si le problème persiste, utilisez Chrome ou Edge.',
+                        action: 'Fermer'
+                      })
+                      setShowVoiceErrorModal(true)
+                      setVoiceCommandsEnabled(false)
+                      setIsNetworkErrorHandling(false) // Réinitialiser le flag
+                      return currentCount // Ne pas modifier le compteur
+                    }
+                    
+                    console.log('[VOICE] 🔄 Tentative de redémarrage après erreur réseau...')
+                    try {
+                      recognition.stop()
+                      setTimeout(() => {
+                        try {
+                          recognition.start()
+                          console.log('[VOICE] ✅ Redémarrage réussi après erreur réseau')
+                          setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
+                          setIsNetworkErrorHandling(false) // Réinitialiser le flag après redémarrage
+                        } catch (restartError: any) {
+                          console.log('[VOICE] ❌ Échec du redémarrage:', restartError.message || restartError)
+                          setIsListening(false)
+                          setVoiceCommandText('❌ Échec de la reconnexion')
+                          setIsNetworkErrorHandling(false) // Réinitialiser le flag
+                        }
+                      }, 500)
+                    } catch (stopError) {
+                      console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
+                      setIsListening(false)
+                      setVoiceCommandText('❌ Erreur lors de l\'arrêt')
+                      setIsNetworkErrorHandling(false) // Réinitialiser le flag
+                    }
+                    return currentCount // Ne pas modifier le compteur
+                  })
+                }, 1000) // Attendre 1 seconde avant de redémarrer
+              } else {
+                // Trop de tentatives - ARRÊTER DÉFINITIVEMENT
+                console.log('[VOICE] ❌ Trop de tentatives réseau, arrêt définitif')
+                setIsListening(false)
+                setVoiceCommandText('❌ Connexion impossible - Brave bloque Google')
+                const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+                setVoiceErrorDetails({
+                  title: 'Connexion impossible',
+                  message: isBrave 
+                    ? 'Brave bloque toujours les connexions Google. Solutions :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Vérifiez aussi brave://settings/shields (désactivez le bouclier pour localhost:4000)\n5. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
+                    : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez.',
+                  action: 'Fermer'
+                })
+                setShowVoiceErrorModal(true)
+                setVoiceCommandsEnabled(false)
+                setIsNetworkErrorHandling(false) // Réinitialiser le flag
+              }
+              
+              return newRetryCount
+            })
             
-            return newRetryCount
+            return true // Marquer comme en cours de traitement
           })
           return
         }
@@ -745,8 +775,9 @@ export default function TaskflowPage() {
       // Démarrer l'écoute
       console.log('[VOICE] ▶️ Démarrage de l\'écoute...')
       
-      // Réinitialiser le compteur d'erreur réseau quand l'utilisateur démarre manuellement
+      // Réinitialiser le compteur d'erreur réseau et le flag quand l'utilisateur démarre manuellement
       setNetworkRetryCount(0)
+      setIsNetworkErrorHandling(false)
       
       // Vérifier le microphone avant de démarrer
       console.log('[VOICE] 🔍 Vérification du microphone...')

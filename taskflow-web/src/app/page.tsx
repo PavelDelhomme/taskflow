@@ -343,31 +343,16 @@ export default function TaskflowPage() {
     }
   }, [])
 
-  // 🎤 Vérifier la connexion Internet
+  // 🎤 Vérifier la connexion Internet (version plus permissive)
   const checkInternetConnection = async (): Promise<boolean> => {
     // Vérifier d'abord l'état du navigateur
     if (navigator.onLine === false) {
       return false
     }
     
-    // Vérifier avec une requête réelle (avec timeout)
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 secondes max
-      
-      const response = await fetch('https://www.google.com/favicon.ico', { 
-        method: 'HEAD',
-        mode: 'no-cors',
-        cache: 'no-cache',
-        signal: controller.signal
-      })
-      
-      clearTimeout(timeoutId)
-      return true
-    } catch (error) {
-      // Si erreur, on considère qu'il n'y a pas de connexion
-      return false
-    }
+    // Ne pas bloquer si la vérification échoue - laisser le navigateur gérer
+    // La reconnaissance vocale peut fonctionner même si la vérification échoue
+    return true // Toujours retourner true pour ne pas bloquer
   }
 
   // 🎤 Initialiser les commandes vocales
@@ -492,6 +477,7 @@ export default function TaskflowPage() {
         setIsListening(true)
         setVoiceError(null)
         setVoiceCommandText('🎤 Écoute en cours...')
+        sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
       }
       
         setRecognition(recognition)
@@ -577,53 +563,66 @@ export default function TaskflowPage() {
     }
     
     if (isListening) {
-      recognition.stop()
-      setIsListening(false)
-      setVoiceCommandText('')
-      sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
-    } else {
-      // Vérifier Internet AVANT de démarrer
-      const hasInternet = await checkInternetConnection()
-      if (!hasInternet) {
-        setVoiceErrorDetails({
-          title: 'Connexion Internet requise',
-          message: 'La reconnaissance vocale nécessite une connexion Internet active. Vérifiez votre connexion et réessayez.',
-          action: 'Compris'
-        })
-        setShowVoiceErrorModal(true)
-        return
+      // Arrêter l'écoute
+      try {
+        recognition.stop()
+        setIsListening(false)
+        setVoiceCommandText('')
+        sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
+      } catch (error) {
+        // Si erreur à l'arrêt, forcer l'arrêt
+        setIsListening(false)
+        setVoiceCommandText('')
       }
-
-      // Vérifier le microphone avant de démarrer
+    } else {
+      // Démarrer l'écoute
+      // Vérifier le microphone avant de démarrer (mais ne pas bloquer sur Internet)
       const micAvailable = await checkMicrophoneAvailability()
       if (!micAvailable) {
         return // L'erreur est déjà affichée par checkMicrophoneAvailability
       }
       
+      // Vérifier Internet (mais ne pas bloquer - laisser le navigateur gérer)
+      const hasInternet = navigator.onLine
+      if (!hasInternet) {
+        // Avertir mais permettre quand même
+        sendNotification('⚠️ Pas de connexion', 'La reconnaissance vocale nécessite Internet. Tentative de démarrage...')
+      }
+      
       try {
         recognition.start()
+        setIsListening(true)
+        setVoiceCommandText('🎤 Écoute en cours...')
         sendNotification('🎤 Écoute active', 'Parlez votre commande maintenant...')
       } catch (error: any) {
-        // Ne pas logger dans la console
+        setIsListening(false)
+        setVoiceCommandText('')
+        
         if (error.message?.includes('already started') || error.message?.includes('started')) {
-          // La reconnaissance est déjà en cours, on l'arrête d'abord
-          recognition.stop()
-          setTimeout(() => {
-            try {
-              recognition.start()
-            } catch (e) {
-              setVoiceErrorDetails({
-                title: 'Erreur de démarrage',
-                message: 'Erreur lors du redémarrage. Réessayez dans quelques secondes.',
-                action: 'Fermer'
-              })
-              setShowVoiceErrorModal(true)
-            }
-          }, 200)
+          // La reconnaissance est déjà en cours, on l'arrête d'abord puis on redémarre
+          try {
+            recognition.stop()
+            setTimeout(() => {
+              try {
+                recognition.start()
+                setIsListening(true)
+                setVoiceCommandText('🎤 Écoute en cours...')
+              } catch (e) {
+                setVoiceErrorDetails({
+                  title: 'Erreur de démarrage',
+                  message: 'Erreur lors du redémarrage. Réessayez dans quelques secondes.',
+                  action: 'Fermer'
+                })
+                setShowVoiceErrorModal(true)
+              }
+            }, 300)
+          } catch (stopError) {
+            // Ignorer l'erreur d'arrêt
+          }
         } else {
           setVoiceErrorDetails({
             title: 'Erreur de démarrage',
-            message: 'Impossible de démarrer la reconnaissance vocale. Vérifiez votre connexion Internet et votre microphone.',
+            message: 'Impossible de démarrer la reconnaissance vocale. Vérifiez votre connexion Internet et votre microphone, puis réessayez.',
             action: 'Réessayer'
           })
           setShowVoiceErrorModal(true)

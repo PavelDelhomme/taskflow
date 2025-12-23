@@ -2500,6 +2500,44 @@ export default function TaskflowPage() {
                           🎤 Commandes Vocales
                           {isListening && <span className="voice-status-indicator pulse-animation">●</span>}
                         </div>
+                        {((navigator as any).brave && (navigator as any).brave.isBrave) && (
+                          <div style={{ 
+                            padding: '12px', 
+                            marginBottom: '8px',
+                            backgroundColor: 'var(--color-warning)',
+                            borderRadius: '8px',
+                            fontSize: '0.85em',
+                            border: '2px solid var(--color-warning-dark)'
+                          }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>⚠️</span>
+                              <span>Brave détecté</span>
+                            </div>
+                            <div style={{ marginBottom: '8px', lineHeight: '1.4' }}>
+                              Brave bloque Google par défaut. Pour activer les commandes vocales :
+                            </div>
+                            <ol style={{ marginLeft: '16px', marginBottom: '8px', lineHeight: '1.5' }}>
+                              <li>Cliquez sur <strong>🛡️</strong> dans la barre d'adresse</li>
+                              <li>Désactivez <strong>"Bloquer les scripts et les trackers"</strong></li>
+                              <li>Rechargez la page (F5)</li>
+                            </ol>
+                            <button
+                              className="btn-auth-secondary"
+                              style={{ 
+                                marginTop: '4px', 
+                                fontSize: '0.8em', 
+                                padding: '6px 12px',
+                                width: '100%'
+                              }}
+                              onClick={() => {
+                                setShowVoiceHelpModal(true)
+                                setShowMobileMenu(false)
+                              }}
+                            >
+                              📖 Voir le guide complet
+                            </button>
+                          </div>
+                        )}
                         <div style={{ 
                           padding: '12px', 
                           marginBottom: '8px',

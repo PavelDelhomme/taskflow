@@ -385,6 +385,13 @@ export default function TaskflowPage() {
           setVoiceCommandsEnabled(false)
           return
         }
+        
+        // Détecter Brave Browser (qui bloque souvent les connexions Google)
+        const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+        if (isBrave) {
+          console.log('[VOICE] ⚠️ Brave Browser détecté - peut bloquer les connexions Google')
+          // Avertir mais permettre quand même
+        }
       
       // Transcription en temps réel (interim results)
       recognition.onresult = (event: any) => {
@@ -421,45 +428,77 @@ export default function TaskflowPage() {
       
       // Gestion des erreurs
       recognition.onerror = (event: any) => {
-        console.log('[VOICE] ❌ onerror:', event.error, { isListening, timestamp: new Date().toISOString() })
+        console.log('[VOICE] ❌ onerror:', event.error, { isListening, timestamp: new Date().toISOString(), retryCount: networkRetryCount })
         
-        // Pour l'erreur 'network', essayer de redémarrer automatiquement
+        // Pour l'erreur 'network', essayer de redémarrer automatiquement (max 2 tentatives)
         if (event.error === 'network') {
-          console.log('[VOICE] ⚠️ Erreur réseau détectée, tentative de redémarrage...')
-          setVoiceCommandText('⚠️ Reconnexion...')
+          const newRetryCount = networkRetryCount + 1
+          setNetworkRetryCount(newRetryCount)
           
-          // Ne pas arrêter, essayer de redémarrer après un court délai
-          setTimeout(() => {
-            if (isListening) {
-              console.log('[VOICE] 🔄 Tentative de redémarrage après erreur réseau...')
-              try {
-                recognition.stop()
-                setTimeout(() => {
-                  try {
-                    recognition.start()
-                    console.log('[VOICE] ✅ Redémarrage réussi après erreur réseau')
-                    setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
-                  } catch (restartError: any) {
-                    console.log('[VOICE] ❌ Échec du redémarrage:', restartError.message || restartError)
-                    setIsListening(false)
-                    setVoiceCommandText('')
-                    setVoiceErrorDetails({
-                      title: 'Erreur de connexion',
-                      message: 'Impossible de se connecter aux serveurs de reconnaissance vocale. Vérifiez votre connexion Internet et réessayez.',
-                      action: 'Réessayer'
-                    })
-                    setShowVoiceErrorModal(true)
-                  }
-                }, 500)
-              } catch (stopError) {
-                console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
-                setIsListening(false)
-                setVoiceCommandText('')
+          if (newRetryCount <= 2) {
+            console.log(`[VOICE] ⚠️ Erreur réseau détectée, tentative ${newRetryCount}/2...`)
+            setVoiceCommandText(`⚠️ Reconnexion... (${newRetryCount}/2)`)
+            
+            // Essayer de redémarrer après un court délai
+            setTimeout(() => {
+              if (isListening) {
+                console.log('[VOICE] 🔄 Tentative de redémarrage après erreur réseau...')
+                try {
+                  recognition.stop()
+                  setTimeout(() => {
+                    try {
+                      recognition.start()
+                      console.log('[VOICE] ✅ Redémarrage réussi après erreur réseau')
+                      setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
+                      setNetworkRetryCount(0) // Réinitialiser le compteur si succès
+                    } catch (restartError: any) {
+                      console.log('[VOICE] ❌ Échec du redémarrage:', restartError.message || restartError)
+                      if (newRetryCount >= 2) {
+                        // Trop de tentatives, arrêter
+                        setIsListening(false)
+                        setVoiceCommandText('')
+                        setNetworkRetryCount(0)
+                        const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+                        setVoiceErrorDetails({
+                          title: 'Connexion impossible',
+                          message: isBrave 
+                            ? 'Brave bloque probablement les connexions vers Google. Pour activer la reconnaissance vocale :\n1. Ouvrez brave://settings/privacy\n2. Désactivez "Bloquer les scripts et les trackers"\n3. Ou utilisez Chrome/Edge pour les commandes vocales'
+                            : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez. Si le problème persiste, utilisez Chrome ou Edge.',
+                          action: 'Fermer'
+                        })
+                        setShowVoiceErrorModal(true)
+                      }
+                    }
+                  }, 500)
+                } catch (stopError) {
+                  console.log('[VOICE] ⚠️ Erreur lors de l\'arrêt:', stopError)
+                  setIsListening(false)
+                  setVoiceCommandText('')
+                  setNetworkRetryCount(0)
+                }
               }
-            }
-          }, 1000) // Attendre 1 seconde avant de redémarrer
+            }, 1000) // Attendre 1 seconde avant de redémarrer
+          } else {
+            // Trop de tentatives
+            console.log('[VOICE] ❌ Trop de tentatives réseau, arrêt')
+            setIsListening(false)
+            setVoiceCommandText('')
+            setNetworkRetryCount(0)
+            const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
+            setVoiceErrorDetails({
+              title: 'Connexion impossible',
+              message: isBrave 
+                ? 'Brave bloque probablement les connexions vers Google. Pour activer la reconnaissance vocale :\n1. Ouvrez brave://settings/privacy\n2. Désactivez "Bloquer les scripts et les trackers"\n3. Ou utilisez Chrome/Edge pour les commandes vocales'
+                : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez.',
+              action: 'Fermer'
+            })
+            setShowVoiceErrorModal(true)
+          }
           return
         }
+        
+        // Réinitialiser le compteur pour les autres erreurs
+        setNetworkRetryCount(0)
         
         // Pour l'erreur 'aborted', l'utilisateur a arrêté manuellement
         if (event.error === 'aborted') {
@@ -550,6 +589,7 @@ export default function TaskflowPage() {
         // Forcer isListening à true immédiatement
         setIsListening(true)
         setVoiceError(null)
+        setNetworkRetryCount(0) // Réinitialiser le compteur en cas de succès
         setVoiceCommandText('🎤 Écoute active - Parlez maintenant')
         sendNotification('✅ Écoute démarrée', 'La reconnaissance vocale est active. Parlez maintenant.')
         

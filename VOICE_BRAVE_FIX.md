@@ -47,12 +47,18 @@ Les commandes vocales fonctionnent **immédiatement** dans Chrome ou Edge car il
 4. Cliquez sur 🎤 Voix
 5. Ça devrait fonctionner directement !
 
-### Solution 3 : Autoriser les connexions Google spécifiquement
+### Solution 3 : Autoriser les connexions Google spécifiquement (IMPORTANT)
+
+**Cette solution est souvent nécessaire même si le bouclier est désactivé !**
 
 1. Ouvrez `brave://settings/privacy`
-2. Dans **"Services Google"**, activez **"Autoriser les connexions vers Google"**
-3. ⚠️ Cela autorise Google pour tous les sites
-4. Rechargez la page
+2. Faites défiler jusqu'à **"Services Google"**
+3. Activez **"Autoriser les connexions vers Google"** (basculez le switch)
+4. ⚠️ Cela autorise Google pour tous les sites (mais c'est nécessaire pour la reconnaissance vocale)
+5. **Rechargez la page** (F5)
+6. Testez à nouveau le bouton 🎤 Voix
+
+**Note :** Même si vous avez désactivé le bouclier, Brave peut bloquer Google via ce paramètre de vie privée. C'est souvent la cause principale du problème !
 
 ## 🔍 Vérification que ça fonctionne
 
@@ -114,12 +120,22 @@ La Web Speech API utilise les serveurs Google pour la reconnaissance vocale. Bra
 
 ## 🎯 Solution Rapide (Résumé)
 
-1. **Cliquez sur 🛡️ dans la barre d'adresse**
-2. **Désactivez "Bloquer les scripts et les trackers"**
+**Si le bouclier est désactivé mais ça ne marche toujours pas :**
+
+1. **Ouvrez `brave://settings/privacy`**
+2. **Activez "Autoriser les connexions vers Google"** (dans "Services Google")
 3. **Rechargez la page (F5)**
 4. **Testez le bouton 🎤 Voix**
 
-OU
+**OU (si vous préférez garder le bouclier activé) :**
+
+1. **Cliquez sur 🛡️ dans la barre d'adresse**
+2. **Désactivez "Bloquer les scripts et les trackers"**
+3. **Ouvrez `brave://settings/privacy`**
+4. **Activez "Autoriser les connexions vers Google"**
+5. **Rechargez la page (F5)**
+
+**OU (le plus simple) :**
 
 **Utilisez Chrome/Edge** - ça fonctionne directement ! 🚀
 

@@ -464,7 +464,7 @@ export default function TaskflowPage() {
                         setVoiceErrorDetails({
                           title: 'Connexion impossible',
                           message: isBrave 
-                            ? 'Brave bloque probablement les connexions vers Google. Pour activer la reconnaissance vocale :\n1. Ouvrez brave://settings/privacy\n2. Désactivez "Bloquer les scripts et les trackers"\n3. Ou utilisez Chrome/Edge pour les commandes vocales'
+                            ? 'Brave bloque toujours les connexions Google. Même avec le bouclier désactivé, vous devez aussi :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
                             : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez. Si le problème persiste, utilisez Chrome ou Edge.',
                           action: 'Fermer'
                         })
@@ -490,7 +490,7 @@ export default function TaskflowPage() {
             setVoiceErrorDetails({
               title: 'Connexion impossible',
               message: isBrave 
-                ? 'Brave bloque probablement les connexions vers Google. Pour activer la reconnaissance vocale :\n1. Ouvrez brave://settings/privacy\n2. Désactivez "Bloquer les scripts et les trackers"\n3. Ou utilisez Chrome/Edge pour les commandes vocales'
+                ? 'Brave bloque toujours les connexions Google. Même avec le bouclier désactivé, vous devez aussi :\n\n1. Ouvrez brave://settings/privacy\n2. Faites défiler jusqu\'à "Services Google"\n3. Activez "Autoriser les connexions vers Google"\n4. Rechargez la page (F5)\n\nOU utilisez Chrome/Edge - ça fonctionne directement !'
                 : 'Impossible de se connecter aux serveurs de reconnaissance vocale après plusieurs tentatives. Vérifiez votre connexion Internet, votre firewall, et réessayez.',
               action: 'Fermer'
             })
@@ -2517,10 +2517,19 @@ export default function TaskflowPage() {
                               Brave bloque Google par défaut. Pour activer les commandes vocales :
                             </div>
                             <ol style={{ marginLeft: '16px', marginBottom: '8px', lineHeight: '1.5' }}>
-                              <li>Cliquez sur <strong>🛡️</strong> dans la barre d'adresse</li>
-                              <li>Désactivez <strong>"Bloquer les scripts et les trackers"</strong></li>
+                              <li>Ouvrez <code>brave://settings/privacy</code></li>
+                              <li>Activez <strong>"Autoriser les connexions vers Google"</strong> (dans "Services Google")</li>
                               <li>Rechargez la page (F5)</li>
                             </ol>
+                            <div style={{ 
+                              marginTop: '8px', 
+                              padding: '8px', 
+                              backgroundColor: 'rgba(0,0,0,0.2)', 
+                              borderRadius: '4px',
+                              fontSize: '0.85em'
+                            }}>
+                              <strong>💡 Astuce :</strong> Même si le bouclier 🛡️ est désactivé, ce paramètre est souvent nécessaire !
+                            </div>
                             <button
                               className="btn-auth-secondary"
                               style={{ 

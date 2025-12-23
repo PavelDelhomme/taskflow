@@ -171,6 +171,7 @@ export default function TaskflowPage() {
   const [voiceAudioFeedback, setVoiceAudioFeedback] = useState(true) // Feedback audio activé par défaut
   const [showVoiceErrorModal, setShowVoiceErrorModal] = useState(false)
   const [voiceErrorDetails, setVoiceErrorDetails] = useState<{title: string, message: string, action?: string} | null>(null)
+  const [networkRetryCount, setNetworkRetryCount] = useState(0) // Compteur de tentatives réseau
   
   // 🧠 Mécanisme d'attention intelligent (tracking en arrière-plan pour l'IA)
   const [currentFocusTask, setCurrentFocusTask] = useState<number | null>(null)
@@ -390,7 +391,8 @@ export default function TaskflowPage() {
         const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
         if (isBrave) {
           console.log('[VOICE] ⚠️ Brave Browser détecté - peut bloquer les connexions Google')
-          // Avertir mais permettre quand même
+          // Afficher un avertissement mais permettre quand même
+          setVoiceError('Brave détecté - peut bloquer Google. Voir VOICE_BRAVE_FIX.md')
         }
       
       // Transcription en temps réel (interim results)

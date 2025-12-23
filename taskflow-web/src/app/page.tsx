@@ -343,14 +343,37 @@ export default function TaskflowPage() {
     }
   }, [])
 
+  // 🎤 Vérifier la connexion Internet
+  const checkInternetConnection = async (): Promise<boolean> => {
+    try {
+      // Essayer de charger une petite ressource pour vérifier la connexion
+      const response = await fetch('https://www.google.com/favicon.ico', { 
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-cache'
+      })
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
   // 🎤 Initialiser les commandes vocales
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
-      const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = true // Activer pour transcription en temps réel
-      recognition.lang = 'fr-FR'
+    // Vérifier d'abord si on a Internet
+    checkInternetConnection().then((hasInternet) => {
+      if (!hasInternet) {
+        setVoiceCommandsEnabled(false)
+        setVoiceError('Connexion Internet requise pour les commandes vocales.')
+        return
+      }
+
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = true // Activer pour transcription en temps réel
+        recognition.lang = 'fr-FR'
       
       // Transcription en temps réel (interim results)
       recognition.onresult = (event: any) => {
@@ -421,9 +444,13 @@ export default function TaskflowPage() {
             }
             break
           case 'network':
+            // Ne pas afficher le modal pour l'erreur réseau si on l'a déjà vérifié
+            // Juste arrêter l'écoute silencieusement
             errorTitle = 'Connexion Internet requise'
             errorMessage = 'La reconnaissance vocale nécessite une connexion Internet active. Vérifiez votre connexion et réessayez.'
             errorAction = 'Compris'
+            // Ne pas afficher le modal si c'est juste une erreur réseau passagère
+            // L'utilisateur peut réessayer
             break
           case 'aborted':
             // L'utilisateur a arrêté manuellement, pas d'erreur à afficher
@@ -434,16 +461,19 @@ export default function TaskflowPage() {
             errorAction = 'Fermer'
         }
         
-        // Afficher le modal d'erreur au centre de l'écran
-        setVoiceErrorDetails({
-          title: errorTitle,
-          message: errorMessage,
-          action: errorAction
-        })
-        setShowVoiceErrorModal(true)
-        setVoiceError(errorMessage) // Pour l'affichage dans le menu aussi
-        
-        // Ne pas envoyer de notification pour éviter le spam
+        // Afficher le modal d'erreur au centre de l'écran (sauf pour 'network' qui est géré différemment)
+        if (event.error !== 'network') {
+          setVoiceErrorDetails({
+            title: errorTitle,
+            message: errorMessage,
+            action: errorAction
+          })
+          setShowVoiceErrorModal(true)
+        } else {
+          // Pour l'erreur réseau, juste afficher un message simple sans modal répétitif
+          setVoiceError(errorMessage)
+          // Le modal ne s'affiche que si l'utilisateur essaie de démarrer sans Internet
+        }
       }
       
       // Quand la reconnaissance se termine
@@ -458,12 +488,13 @@ export default function TaskflowPage() {
         setVoiceCommandText('🎤 Écoute en cours...')
       }
       
-      setRecognition(recognition)
-      setVoiceCommandsEnabled(true)
-    } else {
-      setVoiceCommandsEnabled(false)
-      setVoiceError('Reconnaissance vocale non supportée par votre navigateur.')
-    }
+        setRecognition(recognition)
+        setVoiceCommandsEnabled(true)
+      } else {
+        setVoiceCommandsEnabled(false)
+        setVoiceError('Reconnaissance vocale non supportée par votre navigateur.')
+      }
+    })
   }, [])
 
   // 🎤 Vérifier la disponibilité du microphone (sans demander la permission, juste vérifier)
@@ -530,8 +561,12 @@ export default function TaskflowPage() {
   // 🎤 Toggle de la reconnaissance vocale
   const toggleSpeechRecognition = async () => {
     if (!recognition) {
-      setVoiceError('Reconnaissance vocale non disponible dans ce navigateur.')
-      sendNotification('⚠️ Non supporté', 'Utilisez Chrome, Edge ou Safari pour les commandes vocales.')
+      setVoiceErrorDetails({
+        title: 'Reconnaissance vocale non disponible',
+        message: 'Votre navigateur ne supporte pas les commandes vocales. Utilisez Chrome, Edge ou Safari.',
+        action: 'Fermer'
+      })
+      setShowVoiceErrorModal(true)
       return
     }
     
@@ -541,6 +576,18 @@ export default function TaskflowPage() {
       setVoiceCommandText('')
       sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
     } else {
+      // Vérifier Internet AVANT de démarrer
+      const hasInternet = await checkInternetConnection()
+      if (!hasInternet) {
+        setVoiceErrorDetails({
+          title: 'Connexion Internet requise',
+          message: 'La reconnaissance vocale nécessite une connexion Internet active. Vérifiez votre connexion et réessayez.',
+          action: 'Compris'
+        })
+        setShowVoiceErrorModal(true)
+        return
+      }
+
       // Vérifier le microphone avant de démarrer
       const micAvailable = await checkMicrophoneAvailability()
       if (!micAvailable) {
@@ -551,7 +598,7 @@ export default function TaskflowPage() {
         recognition.start()
         sendNotification('🎤 Écoute active', 'Parlez votre commande maintenant...')
       } catch (error: any) {
-        console.error('Erreur lors du démarrage de la reconnaissance:', error)
+        // Ne pas logger dans la console
         if (error.message?.includes('already started') || error.message?.includes('started')) {
           // La reconnaissance est déjà en cours, on l'arrête d'abord
           recognition.stop()
@@ -559,15 +606,21 @@ export default function TaskflowPage() {
             try {
               recognition.start()
             } catch (e) {
-              setVoiceError('Erreur lors du redémarrage. Réessayez dans quelques secondes.')
+              setVoiceErrorDetails({
+                title: 'Erreur de démarrage',
+                message: 'Erreur lors du redémarrage. Réessayez dans quelques secondes.',
+                action: 'Fermer'
+              })
+              setShowVoiceErrorModal(true)
             }
           }, 200)
         } else {
-          setVoiceError('Impossible de démarrer la reconnaissance vocale. Vérifiez votre connexion Internet.')
-          sendNotification('⚠️ Erreur', 'Impossible de démarrer. Vérifiez Internet et le microphone.')
-          setTimeout(() => {
-            setVoiceError(null)
-          }, 5000)
+          setVoiceErrorDetails({
+            title: 'Erreur de démarrage',
+            message: 'Impossible de démarrer la reconnaissance vocale. Vérifiez votre connexion Internet et votre microphone.',
+            action: 'Réessayer'
+          })
+          setShowVoiceErrorModal(true)
         }
       }
     }

@@ -469,7 +469,12 @@ export default function TaskflowPage() {
       
       // Quand la reconnaissance se termine
       recognition.onend = () => {
-        setIsListening(false)
+        // Si onend est appelé, la session est terminée
+        // On arrête l'écoute seulement si elle était active
+        if (isListening) {
+          setIsListening(false)
+          setVoiceCommandText('')
+        }
       }
       
       // Quand la reconnaissance commence

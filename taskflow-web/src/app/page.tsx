@@ -391,8 +391,8 @@ export default function TaskflowPage() {
         const isBrave = (navigator as any).brave && (navigator as any).brave.isBrave
         if (isBrave) {
           console.log('[VOICE] ⚠️ Brave Browser détecté - peut bloquer les connexions Google')
-          // Afficher un avertissement mais permettre quand même
-          setVoiceError('Brave détecté - peut bloquer Google. Voir VOICE_BRAVE_FIX.md')
+          // Afficher un avertissement dans le menu vocal
+          // Ne pas bloquer, juste informer
         }
       
       // Transcription en temps réel (interim results)
@@ -949,10 +949,20 @@ export default function TaskflowPage() {
         e.preventDefault()
         setShowNotesModal(true)
       }
-      // Ctrl/Cmd + Shift + V pour commandes vocales
+      // Ctrl/Cmd + Shift + V pour commandes vocales (toggle)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
         e.preventDefault()
-        toggleSpeechRecognition()
+        // Si l'écoute est active, arrêter. Sinon, démarrer.
+        if (isListening) {
+          if (recognition) {
+            recognition.stop()
+            setIsListening(false)
+            setVoiceCommandText('')
+            sendNotification('🎤 Écoute arrêtée', 'Commande vocale désactivée.')
+          }
+        } else {
+          toggleSpeechRecognition()
+        }
       }
       // Escape pour fermer les modals
       if (e.key === 'Escape') {

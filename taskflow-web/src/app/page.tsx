@@ -745,6 +745,9 @@ export default function TaskflowPage() {
       // Démarrer l'écoute
       console.log('[VOICE] ▶️ Démarrage de l\'écoute...')
       
+      // Réinitialiser le compteur d'erreur réseau quand l'utilisateur démarre manuellement
+      setNetworkRetryCount(0)
+      
       // Vérifier le microphone avant de démarrer
       console.log('[VOICE] 🔍 Vérification du microphone...')
       const micAvailable = await checkMicrophoneAvailability()

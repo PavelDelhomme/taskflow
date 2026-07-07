@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 import uvicorn
 
 # Import des routes
@@ -26,12 +27,14 @@ app = FastAPI(
     redirect_slashes=False
 )
 
-# 🌐 CORS - Autoriser toutes les origines pour les tests
+# 🌐 CORS — CORS_ORIGINS (virgules) ou * en dev
+_cors_raw = os.getenv("CORS_ORIGINS", "*")
+_cors_origins = ["*"] if _cors_raw.strip() == "*" else [o.strip() for o in _cors_raw.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En prod: ["http://localhost:4000"]
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 

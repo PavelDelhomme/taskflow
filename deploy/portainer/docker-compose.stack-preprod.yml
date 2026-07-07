@@ -1,0 +1,15 @@
+# Stack Portainer PRÉPROD — branche refs/heads/dev (staging VPS)
+# Peut coexister avec prod sur le même VPS (ports 4010/4011/4012, conteneurs *-preprod)
+
+include:
+  - path: ../../docker-compose.yml
+  - path: ../../docker-compose.prod.yml
+  - path: ../../docker-compose.preprod.yml
+
+services:
+  taskflow-db:
+    pull_policy: build
+  taskflow-api:
+    pull_policy: build
+  taskflow-web:
+    pull_policy: build

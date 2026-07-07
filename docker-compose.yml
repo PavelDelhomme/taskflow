@@ -1,31 +1,30 @@
 # ============================================================================
-# 🎯 TaskFlow ADHD - Docker Compose PORTS SÉCURISÉS
-# ÉVITE tous les ports PITER: 8081:80, 15672, 1025, 3306, 3310, 3519, 80, 8025, 5672, 3579
-# UTILISE: Web:4000 | API:4001 | DB:4002
+# TaskFlow — Compose de base (dev local, Portainer prod/preprod via overlays)
+# Ports : Web 4000 · API 4001 · DB 4002
+# Dev local : docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 # ============================================================================
 
 services:
-  # 🔥 API FastAPI TaskFlow ADHD
   taskflow-api:
     build:
       context: ./taskflow-api
       dockerfile: Dockerfile
     container_name: taskflow-api
     ports:
-      - "4001:8000"  # Port externe 4001
+      - "4001:8000"
     environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://taskflow:taskflow123@taskflow-db:5432/taskflow_adhd
-      - SECRET_KEY=taskflow-adhd-secret-key-2025
-      - CORS_ORIGINS=http://localhost:4000,http://taskflow-web:3000
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD:-taskflow123}@taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
+      SECRET_KEY: ${SECRET_KEY:-taskflow-adhd-secret-key-2025}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4000,http://taskflow-web:3000}
     volumes:
-      - ./taskflow-api:/app
       - taskflow_api_data:/app/data
     networks:
       - taskflow-network
     depends_on:
-      - taskflow-db
+      taskflow-db:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -34,25 +33,22 @@ services:
       retries: 3
       start_period: 40s
 
-  # 🌐 Web Next.js TaskFlow ADHD  
   taskflow-web:
     build:
       context: ./taskflow-web
       dockerfile: Dockerfile
     container_name: taskflow-web
     ports:
-      - "4000:3000"  # Port externe 4000
+      - "4000:3000"
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:4001
-      - NEXT_TELEMETRY_DISABLED=1
-    volumes:
-      - ./taskflow-web:/app
-      - /app/node_modules
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4001}
+      NEXT_TELEMETRY_DISABLED: "1"
     networks:
       - taskflow-network
     depends_on:
-      - taskflow-api
+      taskflow-api:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
@@ -61,16 +57,15 @@ services:
       retries: 3
       start_period: 60s
 
-  # 🗄️ Base de données PostgreSQL TaskFlow
   taskflow-db:
     image: postgres:15-alpine
     container_name: taskflow-db
     ports:
-      - "4002:5432"  # Port externe 4002
+      - "4002:5432"
     environment:
-      - POSTGRES_DB=taskflow_adhd
-      - POSTGRES_USER=taskflow
-      - POSTGRES_PASSWORD=taskflow123
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow_adhd}
+      POSTGRES_USER: ${POSTGRES_USER:-taskflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskflow123}
     volumes:
       - taskflow_postgres_data:/var/lib/postgresql/data
       - ./taskflow-api/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -78,7 +73,7 @@ services:
       - taskflow-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow_adhd"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskflow} -d ${POSTGRES_DB:-taskflow_adhd}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -93,15 +88,3 @@ volumes:
     name: taskflow_postgres_data
   taskflow_api_data:
     name: taskflow_api_data
-
-# 📋 PORTS UTILISÉS PAR CE PROJET:
-# - 4000: TaskFlow Web (Next.js)
-# - 4001: TaskFlow API (FastAPI)  
-# - 4002: TaskFlow DB (PostgreSQL)
-#
-# 🚫 PORTS ÉVITÉS (utilisés par PITER):
-# - 8081, 80, 8025: Ports HTTP PITER
-# - 15672, 5672: RabbitMQ PITER
-# - 1025: SMTP PITER  
-# - 3306, 3310: MySQL PITER
-# - 3519, 3579: Autres services PITER

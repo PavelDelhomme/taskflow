@@ -49,27 +49,27 @@ taskflow/
 
 1. **Cloner le projet**
    ```bash
-   git clone <repository-url>
-   cd TasksTDAH
+   git clone git@github.com:PavelDelhomme/taskflow.git
+   cd taskflow
    ```
 
 2. **Configurer l'environnement**
    ```bash
-   cp env.example .env
-   # Modifier les variables dans .env si nécessaire
+   make init
+   # Modifier .env si nécessaire
    ```
 
 3. **Démarrer tous les services**
    ```bash
-   docker-compose up -d --build
+   make up
+   make status-watch   # surveillance conteneurs taskflow-* (Ctrl+C pour quitter)
    ```
 
 4. **Accéder aux applications**
-   - API FastAPI : http://localhost:8000
-   - Documentation API : http://localhost:8000/docs
-   - Application Web : http://localhost:3000
-   - Base de données PostgreSQL : localhost:5432
-   - Cache Redis : localhost:6379
+   - Application Web : http://localhost:4000
+   - API FastAPI : http://localhost:4001
+   - Documentation API : http://localhost:4001/docs
+   - Base de données PostgreSQL : localhost:4002
 
 ### Développement Local
 
@@ -175,17 +175,30 @@ flutter test
 
 ## 📦 Déploiement
 
-### Production avec Docker
+### Production (Portainer + Nginx Proxy Manager)
+
+Guide complet : [`deploy/portainer/PORTAINER-STACK.md`](deploy/portainer/PORTAINER-STACK.md) · [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md)
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+make secrets-print    # secrets → Portainer ou .env
+make deploy-prod        # test local prod
+make up-preprod         # staging local (ports 401x)
+make status-watch
 ```
 
-### Déploiement séparé
+### Commandes utiles
 
-- **API** : Déployez sur AWS/GCP/Azure
-- **Web** : Déployez sur Vercel/Netlify
-- **Mobile** : Publiez sur App Store/Google Play
+| Commande | Description |
+|----------|-------------|
+| `make status` | Statut détaillé (conteneurs `taskflow-*` uniquement) |
+| `make status-watch` | Rafraîchissement en boucle (comme JobbingTrack) |
+| `make upgrade-prod` | Rebuild + redéploiement production |
+| `make mobile-release` | Build APK Flutter (voir `taskflow-mobile/`) |
+
+### CI/CD
+
+- **GitHub Actions** : build images GHCR + webhook Portainer sur `main`
+- **Mobile** : tag `mobile-v*` → APK artifact
 
 ## 🤝 Contribution
 

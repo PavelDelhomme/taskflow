@@ -1,0 +1,16 @@
+name: Deploy Production (Portainer webhook)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.PROD_DEPLOY_URL != '' }}
+    steps:
+      - name: Trigger Portainer stack redeploy
+        run: |
+          curl -fsSL -X POST "${{ secrets.PROD_DEPLOY_URL }}"
+          echo "✅ Webhook Portainer prod déclenché"

@@ -1,0 +1,15 @@
+# TaskFlow — overrides développement local (hot-reload, bind mounts)
+# Usage : make up  (= compose base + dev)
+
+services:
+  taskflow-api:
+    volumes:
+      - ./taskflow-api:/app
+      - taskflow_api_data:/app/data
+
+  taskflow-web:
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./taskflow-web:/app
+      - /app/node_modules

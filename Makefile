@@ -1,137 +1,200 @@
-.PHONY: help init build start stop restart restart-logs up down logs clean status test-data clean-test migrate clean-cache test-check test-all
+ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+COMPOSE_DEV := docker compose -f docker-compose.yml -f docker-compose.dev.yml
+COMPOSE_PROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env
+COMPOSE_PREPROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.preprod.yml --env-file .env
+
+.PHONY: help init build build-prod start stop restart restart-logs up down prod up-prod down-prod up-preprod down-preprod restart-prod restart-preprod logs logs-prod logs-preprod clean status status-watch status-live ps secrets secrets-print smoke-prod deploy-web deploy-api deploy-service deploy-prod deploy-preprod upgrade-prod upgrade-preprod clean-cache test-data clean-test migrate test-check test-all test-all-isolated test-report test-env-stop test-voice mobile-build mobile-release
 
 help:
-	@echo "🎯 TaskFlow ADHD - Commandes Docker"
-	@echo "  make init    => Initialise le projet (crée .env depuis env.example)"
-	@echo "  make build   => Build les images Docker"
-	@echo "  make start   => Lance tous les services (alias: make up)"
-	@echo "  make stop    => Arrête tous les services (alias: make down)"
-	@echo "  make restart => Redémarre tous les services (stop puis start)"
-	@echo "  make restart-logs => Redémarre et affiche les logs"
-	@echo "  make up      => Lance tous les services"
-	@echo "  make down    => Arrête tous les services"
-	@echo "  make logs    => Affiche les logs"
-	@echo "  make clean-cache => Nettoie le cache Next.js (.next)"
-	@echo "  make status  => Affiche le statut des conteneurs TaskFlow"
-	@echo "  make test-data => Génère les données de test (workflows + tâches)"
-	@echo "  make test-data-due-dates => Génère les données de test avec échéances"
-	@echo "  make clean-test => Supprime les données de test (conserve l'utilisateur)"
-	@echo "  make migrate => Applique les migrations de base de données"
-	@echo "  make test-check => Vérifie que tous les services sont opérationnels"
-	@echo "  make test-all => Lance tous les tests et analyse les résultats"
-	@echo "  make test-all-isolated => Lance les tests dans un environnement isolé (ne touche pas vos données)"
-	@echo "  make test-report => Génère un rapport détaillé des tests"
-	@echo "  make test-env-stop => Arrête et nettoie l'environnement de test"
-	@echo "  make test-voice => Teste les commandes vocales et l'interface"
-	@echo "  make clean   => Nettoie Docker"
+	@echo "🎯 TaskFlow — commandes Make"
 	@echo ""
-	@echo "🌐 Accès:"
-	@echo "  - Web: http://localhost:4000"
-	@echo "  - API: http://localhost:4001"
-	@echo "  - DB:  localhost:4002"
+	@echo "  Développement local :"
+	@echo "    make init / build / up / down / restart / logs"
+	@echo "    make status / status-watch / ps"
+	@echo ""
+	@echo "  Production (Portainer / VPS) :"
+	@echo "    make prod / up-prod / down-prod / upgrade-prod"
+	@echo "    make deploy-prod / deploy-web / deploy-api / deploy-service SERVICE=web"
+	@echo "    make smoke-prod / secrets-print"
+	@echo ""
+	@echo "  Préprod staging (ports 401x, conteneurs *-preprod) :"
+	@echo "    make up-preprod / down-preprod / upgrade-preprod / deploy-preprod"
+	@echo ""
+	@echo "  Mobile (Flutter — taskflow-mobile/README.md) :"
+	@echo "    make mobile-build / mobile-release"
+	@echo ""
+	@echo "  Tests : make test-check / test-all / migrate / …"
+	@echo ""
+	@echo "📖 Portainer : deploy/portainer/PORTAINER-STACK.md"
 
 init:
 	@if [ -f .env ]; then \
-		echo "⚠️  Le fichier .env existe déjà. Supprimez-le d'abord si vous voulez le réinitialiser."; \
+		printf '%b\n' "\033[1;33m⚠️  .env existe déjà.\033[0m"; \
 	else \
 		cp env.example .env; \
-		echo "✅ Fichier .env créé depuis env.example"; \
-		echo "📝 N'oubliez pas de vérifier et modifier les valeurs dans .env si nécessaire"; \
+		echo "✅ .env créé — ou make secrets pour prod"; \
 	fi
 
+secrets:
+	@chmod +x scripts/dev/gen-secrets.sh
+	@./scripts/dev/gen-secrets.sh
+
+secrets-print:
+	@chmod +x scripts/dev/gen-secrets.sh
+	@./scripts/dev/gen-secrets.sh --print
+
 build:
-	docker-compose build
+	$(COMPOSE_DEV) build
+
+build-prod:
+	$(COMPOSE_PROD) build
+
+build-preprod:
+	$(COMPOSE_PREPROD) build
 
 start: up
-
 stop: down
 
 restart: down up
 
 restart-logs: down up
 	@sleep 2
-	@docker-compose logs -f
+	@$(COMPOSE_DEV) logs -f
 
 up:
-	docker-compose up -d
-	@echo "✅ Services démarrés!"
-	@echo "🌐 Web: http://localhost:4000"
-	@echo "🔥 API: http://localhost:4001"
+	$(COMPOSE_DEV) up -d
+	@echo "✅ Stack dev — http://localhost:4000 · API :4001"
 
 down:
-	docker-compose down
+	$(COMPOSE_DEV) down
+
+prod: up-prod
+
+up-prod:
+	$(COMPOSE_PROD) up -d
+	@echo "✅ Stack prod (loopback 4000/4001/4002) — configurez NPM"
+
+down-prod:
+	$(COMPOSE_PROD) down
+
+restart-prod: down-prod up-prod
+
+deploy-prod: build-prod up-prod smoke-prod
+
+upgrade-prod:
+	$(COMPOSE_PROD) pull --ignore-pull-failures 2>/dev/null || true
+	$(COMPOSE_PROD) build --pull
+	$(COMPOSE_PROD) up -d --remove-orphans
+	@echo "✅ Prod mise à jour"
+
+up-preprod:
+	$(COMPOSE_PREPROD) up -d
+	@echo "✅ Stack préprod (4010/4011/4012) — staging NPM"
+
+down-preprod:
+	$(COMPOSE_PREPROD) down
+
+restart-preprod: down-preprod up-preprod
+
+deploy-preprod: build-preprod up-preprod smoke-preprod
+
+upgrade-preprod:
+	$(COMPOSE_PREPROD) pull --ignore-pull-failures 2>/dev/null || true
+	$(COMPOSE_PREPROD) build --pull
+	$(COMPOSE_PREPROD) up -d --remove-orphans
+
+deploy-web:
+	$(COMPOSE_PROD) build taskflow-web
+	$(COMPOSE_PROD) up -d taskflow-web
+	@echo "✅ taskflow-web redéployé"
+
+deploy-api:
+	$(COMPOSE_PROD) build taskflow-api
+	$(COMPOSE_PROD) up -d taskflow-api
+	@echo "✅ taskflow-api redéployé"
+
+deploy-service:
+	@test -n "$(SERVICE)" || (echo "Usage: make deploy-service SERVICE=web|api|db" && exit 1)
+	$(COMPOSE_PROD) build taskflow-$(SERVICE)
+	$(COMPOSE_PROD) up -d taskflow-$(SERVICE)
 
 logs:
-	docker-compose logs -f
+	$(COMPOSE_DEV) logs -f
+
+logs-prod:
+	$(COMPOSE_PROD) logs -f
+
+logs-preprod:
+	$(COMPOSE_PREPROD) logs -f
+
+smoke-prod:
+	@chmod +x scripts/ops/smoke-prod.sh
+	@./scripts/ops/smoke-prod.sh
+
+smoke-preprod:
+	@SMOKE_API_URL=http://127.0.0.1:4011 SMOKE_WEB_URL=http://127.0.0.1:4010 ./scripts/ops/smoke-prod.sh
 
 status:
+	@chmod +x scripts/ops/status-print.sh
+	@bash scripts/ops/status-print.sh
+
+status-watch:
+	@chmod +x scripts/ops/status-watch-loop.sh
+	@ROOT_DIR="$(ROOT_DIR)" INTERVAL="$(or $(INTERVAL),4)" ALTSCREEN="$(or $(ALTSCREEN),1)" CLEAR="$(or $(CLEAR),0)" STATUS_FOLD="$(or $(STATUS_FOLD),1)" bash scripts/ops/status-watch-loop.sh
+
+status-live: status-watch
+
+ps:
 	@docker ps --filter "name=taskflow" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 test-data:
-	@echo "🧪 Génération des données de test..."
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data.sql
-	@echo "✅ Données de test générées !"
 
 test-data-due-dates:
-	@echo "🧪 Génération des données de test avec échéances..."
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/generate-test-data-with-due-dates.sql
-	@echo "✅ Données de test avec échéances générées !"
 
 clean-test:
-	@echo "🧹 Suppression des données de test..."
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/clean-test-data.sql
-	@echo "✅ Données de test supprimées (utilisateur conservé) !"
 
 migrate:
-	@echo "🔄 Application des migrations..."
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_deleted_at.sql
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_workflows.sql
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_due_date.sql
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_time_tracking.sql
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_add_project_to_tasks.sql
 	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/migration_tdah_features.sql
-	@echo "✅ Migrations appliquées !"
 
 clean-cache:
-	@echo "🧹 Nettoyage du cache Next.js..."
 	@sudo rm -rf taskflow-web/.next 2>/dev/null || true
 	@docker exec taskflow-web rm -rf /app/.next 2>/dev/null || true
-	@echo "✅ Cache Next.js nettoyé !"
 
 test-voice:
-	@echo "🎤 Tests des commandes vocales..."
 	@./test-voice-commands.sh
 
 test-check:
-	@echo "🧪 Vérification de l'environnement..."
 	@./test-checklist.sh
 
 test-all:
-	@echo "🧪 Lancement de tous les tests..."
 	@./test-all.sh
 
 test-all-isolated:
-	@echo "🧪 Configuration de l'environnement de test isolé..."
-	@./setup-test-env.sh
-	@echo ""
-	@echo "⏳ Attente que l'API de test soit complètement prête..."
-	@sleep 15
-	@echo "🧪 Lancement de tous les tests dans l'environnement isolé..."
-	@TEST_API_URL=http://localhost:4003 ./test-all.sh || (echo ""; echo "🛑 Arrêt de l'environnement de test..."; docker-compose -f docker-compose.test.yml down -v; exit 1)
-	@echo ""
-	@echo "🛑 Arrêt de l'environnement de test..."
-	@docker-compose -f docker-compose.test.yml down -v
-	@echo "✅ Environnement de test nettoyé"
+	@./setup-test-env.sh && sleep 15 && TEST_API_URL=http://localhost:4003 ./test-all.sh || (docker compose -f docker-compose.test.yml down -v; exit 1)
+	@docker compose -f docker-compose.test.yml down -v
 
 test-report:
-	@echo "📊 Génération du rapport de tests..."
 	@./generate-test-report.sh
 
 test-env-stop:
-	@echo "🛑 Arrêt de l'environnement de test..."
-	@docker-compose -f docker-compose.test.yml down -v
-	@echo "✅ Environnement de test arrêté et nettoyé"
+	@docker compose -f docker-compose.test.yml down -v
+
+mobile-build:
+	@test -f taskflow-mobile/pubspec.yaml || (echo "❌ Voir taskflow-mobile/README.md"; exit 1)
+	cd taskflow-mobile && flutter pub get && flutter build apk --debug
+
+mobile-release:
+	@test -f taskflow-mobile/pubspec.yaml || (echo "❌ Voir taskflow-mobile/README.md"; exit 1)
+	cd taskflow-mobile && flutter pub get && flutter build apk --release
 
 clean:
-	docker-compose down -v
+	$(COMPOSE_DEV) down -v
 	docker system prune -f

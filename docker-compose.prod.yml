@@ -1,58 +1,43 @@
-# ============================================================================
-# 🎯 TaskFlow ADHD - Docker Compose PRODUCTION LOCALE
-# POUR TON SERVEUR + PORTAINER + EXTERNAL NETWORK
-# ============================================================================
+# TaskFlow — overrides production (loopback NPM, images prod, sans volumes dev)
+# Usage : docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Portainer prod : deploy/portainer/docker-compose.stack.yml
 
 services:
-  # 🔥 API FastAPI TaskFlow ADHD
-  taskflow-api:
-    image: taskflow-api:latest  # Image locale que tu builderas
-    container_name: taskflow-api
-    ports:
-      - "4001:8000"
+  taskflow-db:
     environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      - SECRET_KEY=taskflow-adhd-secret-key-2025
-      - CORS_ORIGINS=https://taskflow.delhomme.ovh,http://localhost:4000
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    ports:
+      - "127.0.0.1:${DB_PUBLISH_PORT:-4002}:5432"
+    restart: always
+
+  taskflow-api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/paveldelhomme}/taskflow-api:${IMAGE_TAG:-latest}
+    build:
+      context: ./taskflow-api
+      dockerfile: Dockerfile.prod
+    pull_policy: ${IMAGE_PULL_POLICY:-build}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD}@taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY requis}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://taskflow.delhomme.ovh}
     volumes:
       - taskflow_api_data:/app/data
-    networks:
-      - shared-network-copy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # 🌐 Web Next.js TaskFlow ADHD  
-  taskflow-web:
-    image: taskflow-web:latest  # Image locale que tu builderas
-    container_name: taskflow-web
     ports:
-      - "4000:3000"
+      - "127.0.0.1:${API_PUBLISH_PORT:-4001}:8000"
+    restart: always
+
+  taskflow-web:
+    image: ${IMAGE_REGISTRY:-ghcr.io/paveldelhomme}/taskflow-web:${IMAGE_TAG:-latest}
+    build:
+      context: ./taskflow-web
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL requis}
+    pull_policy: ${IMAGE_PULL_POLICY:-build}
     environment:
-      - NODE_ENV=development  # En dev pour ton serveur
-      - NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:4001  # Remplace par ton IP serveur
-      - NEXT_TELEMETRY_DISABLED=1
-    networks:
-      - shared-network-copy
-    depends_on:
-      - taskflow-api
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-networks:
-  shared-network-copy:
-    external: true
-
-volumes:
-  taskflow_api_data:
-    name: taskflow_api_data
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    volumes: []
+    ports:
+      - "127.0.0.1:${WEB_PUBLISH_PORT:-4000}:3000"
+    restart: always

@@ -1,0 +1,14 @@
+name: Deploy Preprod (Portainer webhook)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer preprod redeploy
+        if: ${{ secrets.PREPROD_DEPLOY_URL != '' }}
+        run: curl -fsSL -X POST "${{ secrets.PREPROD_DEPLOY_URL }}"

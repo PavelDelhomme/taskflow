@@ -1,0 +1,19 @@
+# Stack Portainer PROD — branche refs/heads/main
+# Secrets : Portainer Environment variables (stack.env.example), jamais dans Git
+
+include:
+  - path: ../../docker-compose.yml
+  - path: ../../docker-compose.prod.yml
+
+services:
+  taskflow-db:
+    pull_policy: build
+  taskflow-api:
+    pull_policy: build
+    environment:
+      PYTHONUNBUFFERED: "1"
+  taskflow-web:
+    pull_policy: build
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"

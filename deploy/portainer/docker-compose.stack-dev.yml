@@ -1,0 +1,12 @@
+# Stack Portainer DEV / intégration — branche refs/heads/dev
+# Stack dev sans overrides prod agressifs (volumes hot-reload)
+
+include:
+  - path: ../../docker-compose.yml
+  - path: ../../docker-compose.dev.yml
+
+services:
+  taskflow-api:
+    pull_policy: build
+  taskflow-web:
+    pull_policy: build

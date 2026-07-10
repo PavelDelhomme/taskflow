@@ -1,19 +1,97 @@
-# Stack Portainer PROD — branche refs/heads/main
-# Secrets : Portainer Environment variables (stack.env.example), jamais dans Git
-
-include:
-  - path: ../../docker-compose.yml
-  - path: ../../docker-compose.prod.yml
+# =============================================================================
+# TaskFlow — Stack Portainer PROD (Git)
+# Réseau NPM : shared-network-copy (comme nextcloud-stack, n8n-stack)
+# Compose path Portainer : deploy/portainer/docker-compose.stack.yml
+# =============================================================================
 
 services:
   taskflow-db:
-    pull_policy: build
-  taskflow-api:
-    pull_policy: build
+    image: postgres:15-alpine
+    container_name: taskflow-db
+    restart: always
     environment:
-      PYTHONUNBUFFERED: "1"
-  taskflow-web:
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow_adhd}
+      POSTGRES_USER: ${POSTGRES_USER:-taskflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes:
+      - taskflow_postgres_data:/var/lib/postgresql/data
+      - ../../taskflow-api/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - taskflow-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskflow} -d ${POSTGRES_DB:-taskflow_adhd}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  taskflow-api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/paveldelhomme}/taskflow-api:${IMAGE_TAG:-latest}
+    build:
+      context: ../../taskflow-api
+      dockerfile: Dockerfile.prod
     pull_policy: build
+    container_name: taskflow-api
+    restart: always
+    environment:
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD}@taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY requis}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://taskflow.delhomme.ovh}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+    volumes:
+      - taskflow_api_data:/app/data
+    networks:
+      - taskflow-internal
+      - shared-network-copy
+    depends_on:
+      taskflow-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  taskflow-web:
+    image: ${IMAGE_REGISTRY:-ghcr.io/paveldelhomme}/taskflow-web:${IMAGE_TAG:-latest}
+    build:
+      context: ../../taskflow-web
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL requis}
+    pull_policy: build
+    container_name: taskflow
+    restart: always
     environment:
       NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_ALLOW_REGISTRATION: ${NEXT_PUBLIC_ALLOW_REGISTRATION:-false}
+    networks:
+      - taskflow-internal
+      - shared-network-copy
+    depends_on:
+      taskflow-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+networks:
+  taskflow-internal:
+    name: taskflow-internal
+    driver: bridge
+  shared-network-copy:
+    external: true
+
+volumes:
+  taskflow_postgres_data:
+    name: taskflow_postgres_data
+  taskflow_api_data:
+    name: taskflow_api_data

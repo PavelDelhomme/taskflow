@@ -1,0 +1,45 @@
+{
+  "type": 3,
+  "title": "TaskFlow ADHD (prod VPS + NPM)",
+  "description": "Stack TaskFlow TDAH — GitHub PavelDelhomme/taskflow, réseau shared-network-copy, NPM delhomme.ovh",
+  "note": "Variables : voir deploy/portainer/stack.env.example. Guide : deploy/portainer/GUIDE-PORTAINER-NPM.md",
+  "platform": "linux",
+  "logo": "",
+  "categories": ["productivity"],
+  "repository": {
+    "url": "https://github.com/PavelDelhomme/taskflow",
+    "stackfile": "deploy/portainer/docker-compose.stack.yml"
+  },
+  "env": [
+    {
+      "name": "POSTGRES_PASSWORD",
+      "label": "Mot de passe PostgreSQL",
+      "description": "openssl rand -hex 24"
+    },
+    {
+      "name": "SECRET_KEY",
+      "label": "Clé JWT API",
+      "description": "openssl rand -hex 32"
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "label": "URL publique API",
+      "default": "https://api.taskflow.delhomme.ovh"
+    },
+    {
+      "name": "CORS_ORIGINS",
+      "label": "Origines CORS (virgules)",
+      "default": "https://taskflow.delhomme.ovh,https://api.taskflow.delhomme.ovh"
+    },
+    {
+      "name": "ALLOW_REGISTRATION",
+      "label": "Inscription publique",
+      "default": "false"
+    },
+    {
+      "name": "NEXT_PUBLIC_ALLOW_REGISTRATION",
+      "label": "Bouton inscription web",
+      "default": "false"
+    }
+  ]
+}

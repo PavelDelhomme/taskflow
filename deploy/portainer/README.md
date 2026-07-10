@@ -4,7 +4,8 @@ Guide maître : [docs/DEPLOIEMENT.md](../../docs/DEPLOIEMENT.md)
 
 | Guide | Fichier |
 |-------|---------|
-| Pas à pas Portainer | [PORTAINER-STACK.md](./PORTAINER-STACK.md) |
+| Guide détaillé NPM + formulaire Portainer | [GUIDE-PORTAINER-NPM.md](./GUIDE-PORTAINER-NPM.md) |
+| Template Portainer (import) | [portainer-template.json](./portainer-template.json) |
 | Variables modèle | [stack.env.example](./stack.env.example) |
 | Compose prod (`main`) | [docker-compose.stack.yml](./docker-compose.stack.yml) |
 | Compose dev (`dev`) | [docker-compose.stack-dev.yml](./docker-compose.stack-dev.yml) |

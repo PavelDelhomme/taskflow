@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from passlib.hash import bcrypt as passlib_bcrypt
@@ -9,6 +9,8 @@ import jwt
 import re
 import hashlib
 import os
+import time
+from collections import defaultdict
 
 from database import get_db
 
@@ -21,6 +23,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "taskflow-adhd-secret-key-2025")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 ALLOW_REGISTRATION = os.getenv("ALLOW_REGISTRATION", "false").lower() in ("1", "true", "yes")
+LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "8"))
+LOGIN_WINDOW_SECONDS = int(os.getenv("LOGIN_WINDOW_SECONDS", "900"))
+_login_failures: dict[str, list[float]] = defaultdict(list)
 
 # Models
 class UserRegister(BaseModel):
@@ -98,6 +103,26 @@ def validate_email(email: str) -> bool:
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
+
+def _login_key(email: str, client_ip: str) -> str:
+    return f"{email.strip().lower()}|{client_ip}"
+
+
+def _check_login_rate_limit(key: str) -> None:
+    now = time.time()
+    window_start = now - LOGIN_WINDOW_SECONDS
+    attempts = [t for t in _login_failures[key] if t >= window_start]
+    _login_failures[key] = attempts
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts. Try again later.",
+        )
+
+
+def _record_login_failure(key: str) -> None:
+    _login_failures[key].append(time.time())
+
 # 🔐 ROUTES AUTH
 
 @router.get("/config")
@@ -165,9 +190,13 @@ async def register(user_data: UserRegister):
         }
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin):
+async def login(credentials: UserLogin, request: Request):
     """Connexion utilisateur"""
-    
+
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = _login_key(credentials.email, client_ip)
+    _check_login_rate_limit(rate_key)
+
     with get_db() as cursor:
         # Récupérer user
         cursor.execute(
@@ -178,10 +207,13 @@ async def login(credentials: UserLogin):
         
         # Vérifier user + password
         if not user or not verify_password(credentials.password, user["password_hash"]):
+            _record_login_failure(rate_key)
             raise HTTPException(
                 status_code=401,
                 detail="Invalid email or password"
             )
+
+        _login_failures.pop(rate_key, None)
         
         # Créer JWT token
         access_token = create_access_token(

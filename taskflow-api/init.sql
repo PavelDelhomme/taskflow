@@ -74,34 +74,7 @@ CREATE TABLE IF NOT EXISTS attention_logs (
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE SET NULL
 );
 
--- 👤 Comptes initiaux — voir seed-users.sql / make seed-users / docs/UTILISATEURS.md
--- Propriétaire : Pactivisme / paveldelhomme@gmail.com
-INSERT INTO users (username, email, password_hash, full_name, is_active)
-VALUES (
-    'Pactivisme',
-    'paveldelhomme@gmail.com',
-    '$2b$12$L8VzTpo9TkYXGkPuaOjVUetJsjkavui0dQ1Vh29nJPP6ClgkheJCa',
-    'Paul Delhomme',
-    true
-) ON CONFLICT (username) DO UPDATE SET
-    email = EXCLUDED.email,
-    password_hash = EXCLUDED.password_hash,
-    full_name = EXCLUDED.full_name,
-    is_active = true;
-
--- Compte démo (présentations)
-INSERT INTO users (username, email, password_hash, full_name, is_active)
-VALUES (
-    'demo',
-    'demo@taskflow.local',
-    '$2b$12$CyqWWxyqmYr47fLjS.UZVe.a5VXfoxuTsuY5hAVUG6Gn1OV/FyGYG',
-    'Compte Démo TaskFlow',
-    true
-) ON CONFLICT (username) DO UPDATE SET
-    email = EXCLUDED.email,
-    password_hash = EXCLUDED.password_hash,
-    full_name = EXCLUDED.full_name,
-    is_active = true;
+-- 👤 Comptes : créés via make seed-users (scripts/seed_users.py) — jamais de mots de passe en Git
 
 -- 🗂️ WORKFLOWS PAR DÉFAUT (utiliser make test-data pour générer plus de données)
 -- Les données de test complètes sont dans generate-test-data.sql
@@ -116,6 +89,4 @@ CREATE INDEX IF NOT EXISTS idx_attention_logs_user_id ON attention_logs(user_id)
 CREATE INDEX IF NOT EXISTS idx_attention_logs_task_id ON attention_logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_attention_logs_focus_start ON attention_logs(focus_start);
 
--- ✅ BASE PRÊTE !
--- Propriétaire : paveldelhomme@gmail.com (mot de passe dans .env OWNER_PASSWORD)
--- Démo : demo@taskflow.local / voir DEMO_PASSWORD dans env.example
+-- ✅ BASE PRÊTE — comptes : make seed-users

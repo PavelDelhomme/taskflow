@@ -1,6 +1,6 @@
 # Stacks Portainer TaskFlow
 
-Guide maître : [docs/DEPLOIEMENT.md](../../docs/DEPLOIEMENT.md)
+Guide pas à pas (checklist) : **[GUIDE-PORTAINER-NPM.md](./GUIDE-PORTAINER-NPM.md)** ← commencer ici
 
 | Guide | Fichier |
 |-------|---------|

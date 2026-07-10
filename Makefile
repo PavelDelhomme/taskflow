@@ -15,7 +15,7 @@ help:
 	@echo "  Production (Portainer / VPS) :"
 	@echo "    make prod / up-prod / down-prod / upgrade-prod"
 	@echo "    make deploy-prod / deploy-web / deploy-api / deploy-service SERVICE=web"
-	@echo "    make smoke-prod / secrets-print"
+	@echo "    make smoke-prod / secrets-print / secrets-print-accounts"
 	@echo ""
 	@echo "  Préprod staging (ports 401x, conteneurs *-preprod) :"
 	@echo "    make up-preprod / down-preprod / upgrade-preprod / deploy-preprod"
@@ -42,6 +42,10 @@ secrets:
 secrets-print:
 	@chmod +x scripts/dev/gen-secrets.sh
 	@./scripts/dev/gen-secrets.sh --print
+
+secrets-print-accounts:
+	@chmod +x scripts/dev/gen-secrets.sh
+	@./scripts/dev/gen-secrets.sh --accounts
 
 build:
 	$(COMPOSE_DEV) build
@@ -135,9 +139,8 @@ smoke-preprod:
 	@SMOKE_API_URL=http://127.0.0.1:4011 SMOKE_WEB_URL=http://127.0.0.1:4010 ./scripts/ops/smoke-prod.sh
 
 seed-users:
-	@echo "👤 Création / mise à jour des comptes propriétaire + démo..."
-	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/seed-users.sql
-	@echo "✅ Comptes prêts — voir docs/UTILISATEURS.md"
+	@chmod +x scripts/db/seed-users.sh
+	@./scripts/db/seed-users.sh
 
 status:
 	@chmod +x scripts/ops/status-print.sh

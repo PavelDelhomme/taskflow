@@ -1912,7 +1912,7 @@ export default function TaskflowPage() {
       })
 
       if (response.ok) {
-        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: undefined, project: '', estimated_time_minutes: null })
+        setNewTask({ title: '', description: '', priority: 'medium', trello_id: '', due_date: '', project: '', estimated_time_minutes: null })
         setShowCreateModal(false)
         fetchTasks(token)
         showActionFeedback('✅ Tâche créée avec succès', 'success')

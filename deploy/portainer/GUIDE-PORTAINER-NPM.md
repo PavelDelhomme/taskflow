@@ -229,7 +229,7 @@ curl -sI https://taskflow.delhomme.ovh/ | head -5
 
 Navigateur :
 1. Ouvre **https://taskflow.delhomme.ovh**
-2. Connecte-toi : `paveldelhomme@gmail.com` + ton mot de passe propriétaire
+2. Connecte-toi : identifiant **`Pactivisme`** ou email **`paveldelhomme@gmail.com`** + ton mot de passe propriétaire
 3. Le bouton **« Créer un compte »** ne doit **pas** apparaître
 
 Compte démo (présentations uniquement) :

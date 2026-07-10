@@ -3,13 +3,14 @@ COMPOSE_DEV := docker compose -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env
 COMPOSE_PREPROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.preprod.yml --env-file .env
 
-.PHONY: help init build build-prod start stop restart restart-logs up down prod up-prod down-prod up-preprod down-preprod restart-prod restart-preprod logs logs-prod logs-preprod clean status status-watch status-live ps secrets secrets-print smoke-prod deploy-web deploy-api deploy-service deploy-prod deploy-preprod upgrade-prod upgrade-preprod seed-users clean-cache test-data clean-test migrate test-check test-all test-all-isolated test-report test-env-stop test-voice mobile-build mobile-release
+.PHONY: help init build build-prod start stop restart restart-logs up down prod up-prod down-prod up-preprod down-preprod restart-prod restart-preprod logs logs-prod logs-preprod clean status status-watch status-live ps secrets secrets-print smoke-prod deploy-web deploy-api deploy-service deploy-prod deploy-preprod upgrade-prod upgrade-preprod seed-users ide-deps clean-cache test-data clean-test migrate test-check test-all test-all-isolated test-report test-env-stop test-voice mobile-build mobile-release
 
 help:
 	@echo "🎯 TaskFlow — commandes Make"
 	@echo ""
 	@echo "  Développement local :"
 	@echo "    make init / build / up / down / restart / logs"
+	@echo "    make ide-deps          # npm local pour Cursor (sans casser Docker)"
 	@echo "    make status / status-watch / ps"
 	@echo ""
 	@echo "  Production (Portainer / VPS) :"
@@ -46,6 +47,10 @@ secrets-print:
 secrets-print-accounts:
 	@chmod +x scripts/dev/gen-secrets.sh
 	@./scripts/dev/gen-secrets.sh --accounts
+
+ide-deps:
+	@chmod +x scripts/dev/ide-deps.sh
+	@./scripts/dev/ide-deps.sh
 
 build:
 	$(COMPOSE_DEV) build

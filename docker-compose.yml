@@ -18,6 +18,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD:-taskflow123}@taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
       SECRET_KEY: ${SECRET_KEY:-taskflow-adhd-secret-key-2025}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4000,http://taskflow-web:3000}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
     volumes:
       - taskflow_api_data:/app/data
     networks:
@@ -44,6 +45,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4001}
       NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_ALLOW_REGISTRATION: ${NEXT_PUBLIC_ALLOW_REGISTRATION:-false}
     networks:
       - taskflow-network
     depends_on:

@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env
 COMPOSE_PREPROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.preprod.yml --env-file .env
 
-.PHONY: help init build build-prod start stop restart restart-logs up down prod up-prod down-prod up-preprod down-preprod restart-prod restart-preprod logs logs-prod logs-preprod clean status status-watch status-live ps secrets secrets-print smoke-prod deploy-web deploy-api deploy-service deploy-prod deploy-preprod upgrade-prod upgrade-preprod clean-cache test-data clean-test migrate test-check test-all test-all-isolated test-report test-env-stop test-voice mobile-build mobile-release
+.PHONY: help init build build-prod start stop restart restart-logs up down prod up-prod down-prod up-preprod down-preprod restart-prod restart-preprod logs logs-prod logs-preprod clean status status-watch status-live ps secrets secrets-print smoke-prod deploy-web deploy-api deploy-service deploy-prod deploy-preprod upgrade-prod upgrade-preprod seed-users clean-cache test-data clean-test migrate test-check test-all test-all-isolated test-report test-env-stop test-voice mobile-build mobile-release
 
 help:
 	@echo "🎯 TaskFlow — commandes Make"
@@ -23,7 +23,7 @@ help:
 	@echo "  Mobile (Flutter — taskflow-mobile/README.md) :"
 	@echo "    make mobile-build / mobile-release"
 	@echo ""
-	@echo "  Tests : make test-check / test-all / migrate / …"
+	@echo "  Tests : make test-check / test-all / migrate / seed-users / …"
 	@echo ""
 	@echo "📖 Portainer : deploy/portainer/PORTAINER-STACK.md"
 
@@ -133,6 +133,11 @@ smoke-prod:
 
 smoke-preprod:
 	@SMOKE_API_URL=http://127.0.0.1:4011 SMOKE_WEB_URL=http://127.0.0.1:4010 ./scripts/ops/smoke-prod.sh
+
+seed-users:
+	@echo "👤 Création / mise à jour des comptes propriétaire + démo..."
+	@docker exec -i taskflow-db psql -U taskflow -d taskflow_adhd < taskflow-api/seed-users.sql
+	@echo "✅ Comptes prêts — voir docs/UTILISATEURS.md"
 
 status:
 	@chmod +x scripts/ops/status-print.sh

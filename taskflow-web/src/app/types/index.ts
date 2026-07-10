@@ -48,5 +48,6 @@ export interface AuthPageProps {
   setShowRegisterPassword: (value: boolean) => void
   login: () => void
   register: () => void
+  allowRegistration: boolean
 }
 

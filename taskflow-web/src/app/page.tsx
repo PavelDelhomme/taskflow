@@ -184,6 +184,7 @@ export default function TaskflowPage() {
   const API_URL = (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) 
     ? process.env.NEXT_PUBLIC_API_URL 
     : 'http://localhost:4001'
+  const allowRegistration = process.env.NEXT_PUBLIC_ALLOW_REGISTRATION === 'true'
 
   useEffect(() => {
     // Ajouter les styles CSS personnalisés
@@ -2376,6 +2377,7 @@ export default function TaskflowPage() {
         setShowRegisterPassword={setShowRegisterPassword}
         login={login}
         register={register}
+        allowRegistration={allowRegistration}
       />
     )
   }

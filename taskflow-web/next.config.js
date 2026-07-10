@@ -3,6 +3,7 @@ const nextConfig = {
     output: 'standalone',
     env: {
       NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001',
+      NEXT_PUBLIC_ALLOW_REGISTRATION: process.env.NEXT_PUBLIC_ALLOW_REGISTRATION || 'false',
     },
     async rewrites() {
       return [

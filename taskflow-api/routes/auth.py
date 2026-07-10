@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from passlib.hash import bcrypt
+from passlib.hash import bcrypt as passlib_bcrypt
+import bcrypt as bcrypt_lib
 from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 import re
 import hashlib
-import base64
-import secrets
+import os
 
 from database import get_db
 
@@ -17,9 +17,10 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
 # Configuration
-SECRET_KEY = "taskflow-adhd-secret-key-2025"
+SECRET_KEY = os.getenv("SECRET_KEY", "taskflow-adhd-secret-key-2025")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24h
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+ALLOW_REGISTRATION = os.getenv("ALLOW_REGISTRATION", "false").lower() in ("1", "true", "yes")
 
 # Models
 class UserRegister(BaseModel):
@@ -40,30 +41,32 @@ class Token(BaseModel):
 # Utilitaires
 def hash_password(password: str) -> str:
     """Hash password avec bcrypt"""
-    return bcrypt.hash(password)
+    return bcrypt_lib.hashpw(password.encode("utf-8"), bcrypt_lib.gensalt()).decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Vérifier password - Supporte bcrypt et SHA-256"""
-    # Si c'est un hash SHA-256 (format: sha256$salt$hash)
-    if hashed_password.startswith('sha256$'):
-        parts = hashed_password.split('$')
+    """Vérifier password — bcrypt, SHA-256 salé, SHA-256 simple"""
+    if hashed_password.startswith("$2"):
+        try:
+            return bcrypt_lib.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8"),
+            )
+        except (ValueError, TypeError):
+            try:
+                return passlib_bcrypt.verify(plain_password, hashed_password)
+            except (ValueError, TypeError):
+                return False
+
+    if hashed_password.startswith("sha256$"):
+        parts = hashed_password.split("$")
         if len(parts) != 3:
             return False
         salt_part = parts[1]
         hash_part = parts[2]
         password_salt = plain_password + salt_part
-        calculated_hash = hashlib.sha256(password_salt.encode('utf-8')).hexdigest()
+        calculated_hash = hashlib.sha256(password_salt.encode("utf-8")).hexdigest()
         return calculated_hash == hash_part
-    
-    # Si c'est un hash bcrypt (commence par $2a$, $2b$, $2y$)
-    if hashed_password.startswith('$2'):
-        try:
-            return bcrypt.verify(plain_password, hashed_password)
-        except (ValueError, TypeError):
-            # Hash bcrypt malformé, essayer SHA-256 simple comme fallback
-            return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
-    
-    # Fallback pour ancien hash SHA-256 simple (sans salt)
+
     return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -91,22 +94,29 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def validate_email(email: str) -> bool:
-    """Valider format email + domaine autorisé"""
-    pattern = r'^[a-zA-Z0-9._%+-]+@taskflow\.local$'
+    """Valider format email standard"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
 # 🔐 ROUTES AUTH
 
+@router.get("/config")
+async def auth_config():
+    """Configuration publique auth (inscription ouverte ou non)"""
+    return {"allow_registration": ALLOW_REGISTRATION}
+
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister):
-    """Inscription utilisateur"""
-    
-    # Validation email domaine
-    if not validate_email(user_data.email):
+    """Inscription utilisateur — désactivée si ALLOW_REGISTRATION=false"""
+
+    if not ALLOW_REGISTRATION:
         raise HTTPException(
-            status_code=400,
-            detail="Email must be @taskflow.local domain"
+            status_code=403,
+            detail="Registration is disabled. Contact the administrator."
         )
+
+    if not validate_email(user_data.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
     
     # Validation username
     if not re.match(r'^[a-zA-Z0-9_]{3,20}$', user_data.username):

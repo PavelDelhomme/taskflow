@@ -16,6 +16,7 @@ export default function AuthPage({
   setShowRegisterPassword,
   login,
   register,
+  allowRegistration,
 }: AuthPageProps) {
   return (
     <div className={`auth-container ${darkMode ? 'dark' : 'light'}`}>
@@ -71,16 +72,20 @@ export default function AuthPage({
             <button type="submit" className="btn-auth-primary">
               Se connecter
             </button>
-            <div className="auth-divider">
-              <span>ou</span>
-            </div>
-            <button
-              type="button"
-              className="btn-auth-secondary"
-              onClick={() => setShowRegister(true)}
-            >
-              Créer un compte
-            </button>
+            {allowRegistration && (
+              <>
+                <div className="auth-divider">
+                  <span>ou</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-auth-secondary"
+                  onClick={() => setShowRegister(true)}
+                >
+                  Créer un compte
+                </button>
+              </>
+            )}
           </form>
         ) : (
           <form className="auth-form" onSubmit={(e) => { e.preventDefault(); register(); }}>

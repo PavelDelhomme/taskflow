@@ -74,17 +74,34 @@ CREATE TABLE IF NOT EXISTS attention_logs (
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE SET NULL
 );
 
--- 👤 UTILISATEUR PAR DÉFAUT - PASSWORD: taskflow123
-INSERT INTO users (username, email, password_hash, full_name) 
+-- 👤 Comptes initiaux — voir seed-users.sql / make seed-users / docs/UTILISATEURS.md
+-- Propriétaire : Pactivisme / paveldelhomme@gmail.com
+INSERT INTO users (username, email, password_hash, full_name, is_active)
 VALUES (
-    'admin',
-    'admin@taskflow.local',
-    'sha256$wj/is8YBswkdZ2i3LTK1O4oe2BtY2JEHtnX66asKvFo=$6a3505cdec52e053b98bac36d8f89b127b1d6a517c82561b3edae9e5852663a6',
-    'TaskFlow User'
-) ON CONFLICT (username) DO UPDATE SET 
-    password_hash = EXCLUDED.password_hash,
+    'Pactivisme',
+    'paveldelhomme@gmail.com',
+    '$2b$12$L8VzTpo9TkYXGkPuaOjVUetJsjkavui0dQ1Vh29nJPP6ClgkheJCa',
+    'Paul Delhomme',
+    true
+) ON CONFLICT (username) DO UPDATE SET
     email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name;
+    password_hash = EXCLUDED.password_hash,
+    full_name = EXCLUDED.full_name,
+    is_active = true;
+
+-- Compte démo (présentations)
+INSERT INTO users (username, email, password_hash, full_name, is_active)
+VALUES (
+    'demo',
+    'demo@taskflow.local',
+    '$2b$12$CyqWWxyqmYr47fLjS.UZVe.a5VXfoxuTsuY5hAVUG6Gn1OV/FyGYG',
+    'Compte Démo TaskFlow',
+    true
+) ON CONFLICT (username) DO UPDATE SET
+    email = EXCLUDED.email,
+    password_hash = EXCLUDED.password_hash,
+    full_name = EXCLUDED.full_name,
+    is_active = true;
 
 -- 🗂️ WORKFLOWS PAR DÉFAUT (utiliser make test-data pour générer plus de données)
 -- Les données de test complètes sont dans generate-test-data.sql
@@ -100,4 +117,5 @@ CREATE INDEX IF NOT EXISTS idx_attention_logs_task_id ON attention_logs(task_id)
 CREATE INDEX IF NOT EXISTS idx_attention_logs_focus_start ON attention_logs(focus_start);
 
 -- ✅ BASE PRÊTE !
--- Login: admin@taskflow.local / taskflow123
+-- Propriétaire : paveldelhomme@gmail.com (mot de passe dans .env OWNER_PASSWORD)
+-- Démo : demo@taskflow.local / voir DEMO_PASSWORD dans env.example

@@ -20,6 +20,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD}@taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY requis}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://taskflow.delhomme.ovh}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
     volumes:
       - taskflow_api_data:/app/data
     ports:

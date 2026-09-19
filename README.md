@@ -1,3 +1,8 @@
+# Hubera Tasks (TaskFlow)
+
+Produit Hubera : **Hubera Tasks** (`tasks.hubera.cloud`). Package web `@hubera/tasks-web`.  
+L’ancien `tasks-service` Cloudity sera fusionné ici (voir `docs/HUBERA-TASKS.md`).
+
 # TaskFlow Pro - Architecture Modulaire
 
 TaskFlow Pro est un gestionnaire de tâches optimisé pour le TDAH, développé avec une architecture modulaire comprenant :

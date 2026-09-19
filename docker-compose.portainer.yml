@@ -6,16 +6,15 @@
 
 services:
   web:
-    image: nginx:alpine
+    build: .
+    image: taskflow:local
     container_name: taskflow
     restart: unless-stopped
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.enable=false
       - hubera.slug=taskflow
       - hubera.update_channel=taskflow
     volumes:
-      - ./web:/usr/share/nginx/html:ro
-      - ./deploy/nginx-3003.conf:/etc/nginx/conf.d/default.conf:ro
       - hubera-taskflow-html:/var/cache/nginx
     networks:
       - proxy

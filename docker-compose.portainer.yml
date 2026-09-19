@@ -1,0 +1,29 @@
+# Hubera Portainer Git — unitaire.
+# Stack: hubera-taskflow
+# Compose: docker-compose.portainer.yml
+# Réseau: ${NPM_NETWORK:-shared-network-copy}
+# Ne jamais: docker compose down -v · Remove volumes · rename stacks users.
+
+services:
+  web:
+    image: nginx:alpine
+    container_name: taskflow
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - hubera.slug=taskflow
+      - hubera.update_channel=taskflow
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - hubera-taskflow-html:/var/cache/nginx
+    networks:
+      - proxy
+
+volumes:
+  hubera-taskflow-html:
+    name: hubera-taskflow-html
+
+networks:
+  proxy:
+    external: true
+    name: ${NPM_NETWORK:-shared-network-copy}

@@ -233,3 +233,13 @@ Pour toute question ou problème :
 - [ ] Mode sombre
 - [ ] Widgets personnalisés
 - [ ] Export/Import des données
+
+## Portainer
+
+- Stack Git : `hubera-taskflow`
+- Compose : `docker-compose.portainer.yml`
+- Réseau : `shared-network-copy` (env `NPM_NETWORK`)
+- Env : `.env` local (gitignoré), pas dans Git
+- Updates : `https://hubera.cloud/updates/taskflow.json`
+
+Ne pas `down -v`. Ne pas fusionner avec Cloudity / PLM / Gasoil / JT.

@@ -18,6 +18,7 @@ pnpm-debug.log*
 out/
 build/
 dist/
+*.tsbuildinfo
 
 # Nuxt.js
 .nuxt/

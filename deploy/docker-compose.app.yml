@@ -1,0 +1,79 @@
+# Taskflow réel derrière le nginx `taskflow` déjà pointé par NPM.
+# Volumes neufs uniquement (aucune donnée Taskflow sur le VPS aujourd’hui).
+# Ne jamais : down -v · rename du conteneur `taskflow`.
+
+services:
+  hubera-taskflow-db:
+    image: postgres:15-alpine
+    container_name: hubera-taskflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow_adhd}
+      POSTGRES_USER: ${POSTGRES_USER:-taskflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes:
+      - hubera-taskflow-postgres:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskflow} -d ${POSTGRES_DB:-taskflow_adhd}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  hubera-taskflow-api:
+    image: ${TASKFLOW_API_IMAGE:-hubera-taskflow-api:local}
+    container_name: hubera-taskflow-api
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD}@hubera-taskflow-db:5432/${POSTGRES_DB:-taskflow_adhd}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY requis}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://tasks.hubera.cloud,https://taskflow.hubera.cloud,https://taskflow.delhomme.ovh}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+    volumes:
+      - hubera-taskflow-api-data:/app/data
+    networks:
+      - proxy
+    depends_on:
+      hubera-taskflow-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 8s
+      retries: 8
+      start_period: 40s
+
+  hubera-taskflow-web:
+    image: ${TASKFLOW_WEB_IMAGE:-hubera-taskflow-web:local}
+    container_name: hubera-taskflow-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://tasks.hubera.cloud}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_ALLOW_REGISTRATION: ${NEXT_PUBLIC_ALLOW_REGISTRATION:-true}
+    networks:
+      - proxy
+    depends_on:
+      - hubera-taskflow-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 20s
+      timeout: 8s
+      retries: 8
+      start_period: 40s
+
+volumes:
+  hubera-taskflow-postgres:
+    name: hubera-taskflow-postgres
+  hubera-taskflow-api-data:
+    name: hubera-taskflow-api-data
+
+networks:
+  proxy:
+    external: true
+    name: ${NPM_NETWORK:-shared-network-copy}

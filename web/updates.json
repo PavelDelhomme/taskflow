@@ -1,0 +1,16 @@
+{
+  "generated": "2026-09-29T17:03:15Z",
+  "slug": "tasks",
+  "app": "hubera_tasks",
+  "name": "Hubera Tasks",
+  "version": "0.1.2",
+  "versionCode": 3,
+  "min_supported": "0.1.2",
+  "apk": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
+  "apk_url": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
+  "sha256": "123b2f1300ab980c4537cfefa849e653e698d6ad04d797ab2512c075b5f8048f",
+  "mandatory": false,
+  "notes": "Listes type Google Tasks, recherche, échéances. Mise à jour proposée, pas forcée.",
+  "published_at": "2026-09-29T17:03:15Z",
+  "legacy_stack": "hubera-tasks"
+}

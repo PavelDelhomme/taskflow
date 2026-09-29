@@ -80,6 +80,8 @@ Thumbs.db
 *.temp
 tree.txt
 
+web/apk/*.apk
+
 # Deployment docs
 DEPLOYMENT.md
 env.prod.example

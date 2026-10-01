@@ -1,16 +1,28 @@
 {
-  "generated": "2026-09-29T17:03:15Z",
+  "generated": "2026-10-01T19:11:23Z",
   "slug": "tasks",
   "app": "hubera_tasks",
   "name": "Hubera Tasks",
   "version": "0.1.2",
   "versionCode": 3,
+  "package": "fr.cloudity.cloudity_tasks",
+  "signingCertSha256": "3cf6c5321da1517e79940c9e25514a639b2c449e3eff7df7476876cbf6f4c11f",
   "min_supported": "0.1.2",
-  "apk": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
-  "apk_url": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
+  "apk": "https://tasks.hubera.cloud/apk/legacy/hubera-tasks.apk",
+  "apk_url": "https://tasks.hubera.cloud/apk/legacy/hubera-tasks.apk",
+  "install": "https://tasks.hubera.cloud/install",
   "sha256": "123b2f1300ab980c4537cfefa849e653e698d6ad04d797ab2512c075b5f8048f",
   "mandatory": false,
-  "notes": "Listes type Google Tasks, recherche, échéances. Mise à jour proposée, pas forcée.",
-  "published_at": "2026-09-29T17:03:15Z",
-  "legacy_stack": "hubera-tasks"
+  "notes": "Canal legacy (ancien package). Les nouvelles installs utilisent cloud.hubera.* via /install. MAJ jamais forc\u00e9e.",
+  "published_at": "2026-10-01T19:11:23Z",
+  "legacy_stack": "hubera-tasks",
+  "canonical": {
+    "package": "cloud.hubera.tasks",
+    "version": "0.1.3",
+    "versionCode": 4,
+    "apk": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
+    "apk_url": "https://tasks.hubera.cloud/apk/hubera-tasks.apk",
+    "sha256": "292ce20cc73105030ff36625abcbe3cbf9639c88c1717451f8ccb20e82624be2",
+    "signingCertSha256": "3cf6c5321da1517e79940c9e25514a639b2c449e3eff7df7476876cbf6f4c11f"
+  }
 }

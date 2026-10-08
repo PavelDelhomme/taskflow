@@ -15,8 +15,8 @@
   "mandatory": false,
   "forceUpdate": false,
   "apkAvailable": true,
-  "notes": "Canal legacy (ancien package). Les nouvelles installs utilisent cloud.hubera.* via /install. MAJ jamais forc\u00e9e. Canonical 0.1.3 release (téléphone labo 0.1.4, pas de rebuild).",
-  "published_at": "2026-10-01T19:11:23Z",
+  "notes": "Échéances visibles dans Calendar web 0.1.8 (chips jour, toggle Tâches, même Hubera ID). Canal legacy. Canonical 0.1.3. MAJ jamais forcée.",
+  "published_at": "2026-10-08T19:00:00Z",
   "legacy_stack": "hubera-tasks",
   "canonical": {
     "package": "cloud.hubera.tasks",
